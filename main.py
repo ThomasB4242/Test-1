@@ -62,6 +62,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Scaffold an annotations YAML template from the .sav file and exit",
     )
     parser.add_argument(
+        "--template",
+        default=None,
+        metavar="TEMPLATE_FILE",
+        help="Path to a .pptx or .potm template (default: Blank.potm if present)",
+    )
+    parser.add_argument(
         "--logo",
         default=None,
         metavar="IMAGE_FILE",
@@ -80,6 +86,17 @@ def main(argv: list[str] | None = None) -> int:
     input_path = Path(args.input_file)
     title = args.title or input_path.stem.replace("_", " ").replace("-", " ").title()
     is_excel = input_path.suffix.lower() in {".xlsx", ".xls"}
+
+    # Resolve template: explicit arg > Blank.potm beside input > Blank.potm in cwd
+    template_path: str | None = args.template
+    if not template_path:
+        for candidate in [
+            input_path.parent / "Blank.potm",
+            Path("Blank.potm"),
+        ]:
+            if candidate.exists():
+                template_path = str(candidate)
+                break
 
     print(f"Loading  : {input_path}")
     try:
@@ -139,12 +156,15 @@ def main(argv: list[str] | None = None) -> int:
         print("Annotations: auto-generated (no YAML supplied)")
         ann = auto_annotations(results, title=title)
 
+    if template_path:
+        print(f"Template : {template_path}")
     print(f"Building PPTX → {output_path}")
     build_pptx(
         results=results,
         annotations=ann,
         output_path=str(output_path),
         logo_path=args.logo,
+        template_path=template_path,
     )
 
     print(f"Done!    : {output_path}")

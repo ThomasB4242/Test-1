@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import io
+import zipfile
 from pathlib import Path
 from typing import Any
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
+from pptx.oxml.ns import qn
 from pptx.util import Inches, Pt
 
 from . import theme
@@ -159,7 +161,54 @@ def _add_oval(slide, ltwh, fill_color: str) -> Any:
 
 
 def _blank_slide(prs: Presentation):
-    return prs.slides.add_slide(prs.slide_layouts[6])
+    for layout in prs.slide_layouts:
+        if layout.name.lower() == "blank":
+            return prs.slides.add_slide(layout)
+    return prs.slides.add_slide(prs.slide_layouts[min(6, len(prs.slide_layouts) - 1)])
+
+
+def _load_template(template_path: str) -> Presentation:
+    """Load a .pptx/.potm/.potx file as a base template with no slides."""
+    p = template_path.lower()
+    if p.endswith(".potm") or p.endswith(".potx"):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(template_path, "r") as zin:
+            with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+                for item in zin.infolist():
+                    data = zin.read(item.filename)
+                    if item.filename == "[Content_Types].xml":
+                        data = data.replace(
+                            b"application/vnd.ms-powerpoint.template.macroEnabled.main+xml",
+                            b"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml",
+                        ).replace(
+                            b"application/vnd.ms-powerpoint.template.main+xml",
+                            b"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml",
+                        )
+                    zout.writestr(item, data)
+        buf.seek(0)
+        prs = Presentation(buf)
+    else:
+        prs = Presentation(template_path)
+
+    # Remove all existing slides, keeping masters and layouts.
+    # Access prs.slides first to trigger internal initialisation (rename_slide_parts),
+    # then clear the slide-id list and drop the now-stale relationships.
+    slides = prs.slides
+    sldIdLst = slides._sldIdLst
+    slide_rtype = (
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
+    )
+    rids = [
+        rId
+        for rId, rel in prs.part.rels.items()
+        if rel.reltype == slide_rtype
+    ]
+    while len(sldIdLst):
+        sldIdLst.remove(sldIdLst[0])
+    for rId in rids:
+        prs.part._rels._rels.pop(rId, None)
+
+    return prs
 
 
 # ---------------------------------------------------------------------------
@@ -239,17 +288,17 @@ def add_cover_slide(prs: Presentation, spec: dict, logo_path: str | None = None)
     title    = spec.get("title", "Survey Report")
     subtitle = spec.get("subtitle", "")
     base     = spec.get("base", "")
-    _add_textbox(slide, (0.5, 2.5, 9.0, 1.4), title,
+    _add_textbox(slide, (0.67, 2.5, 12.0, 1.4), title,
                  font_size=32, color=theme.WHITE, bold=True, align=PP_ALIGN.CENTER)
     if subtitle:
-        _add_textbox(slide, (0.5, 3.9, 9.0, 0.7), subtitle,
+        _add_textbox(slide, (0.67, 3.9, 12.0, 0.7), subtitle,
                      font_size=18, color=theme.TEAL_LIGHT, align=PP_ALIGN.CENTER)
     if base:
-        _add_textbox(slide, (0.5, 6.8, 9.0, 0.4), base,
+        _add_textbox(slide, (0.67, 6.8, 12.0, 0.4), base,
                      font_size=10, color=theme.TEAL_LIGHT, align=PP_ALIGN.CENTER)
     if logo_path and Path(logo_path).exists():
         try:
-            slide.shapes.add_picture(logo_path, Inches(0.25), Inches(0.15),
+            slide.shapes.add_picture(logo_path, Inches(0.33), Inches(0.15),
                                      height=Inches(0.35))
         except Exception:
             pass
@@ -259,7 +308,7 @@ def add_section_slide(prs: Presentation, spec: dict, logo_path: str | None = Non
     slide = _blank_slide(prs)
     _add_filled_rect(slide, (0, 0, theme.SLIDE_W, theme.SLIDE_H), theme.TEAL_DARK)
     title = spec.get("title", "Section")
-    _add_textbox(slide, (0.5, 3.0, 9.0, 1.2), title,
+    _add_textbox(slide, (0.67, 3.0, 12.0, 1.2), title,
                  font_size=28, color=theme.WHITE, bold=True, align=PP_ALIGN.LEFT)
 
 
@@ -276,7 +325,7 @@ def add_commentary_slide(prs: Presentation, spec: dict, page_num: int | None = N
     for b in spec.get("bullets", []):
         lines.append(f"• {b}" if not b.startswith("•") else b)
     if lines:
-        _add_multiline_textbox(slide, (0.30, 1.30, 9.40, 5.80), lines,
+        _add_multiline_textbox(slide, (0.40, 1.30, 12.53, 5.80), lines,
                                 font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
     _add_footer(slide, spec.get("base", ""), page_num)
 
@@ -285,16 +334,16 @@ def add_commentary_slide(prs: Presentation, spec: dict, page_num: int | None = N
 # Layout constants
 # ---------------------------------------------------------------------------
 
-_CHART_L  = theme.CHART_BOX[0]   # 0.30"
-_CHART_W  = theme.CHART_BOX[2]   # 5.50"
+_CHART_L  = theme.CHART_BOX[0]   # 0.40"
+_CHART_W  = theme.CHART_BOX[2]   # 7.33"
 _CHART_T  = 1.55
-_ANNOT_L  = 6.10
-_ANNOT_W  = 9.70 - _ANNOT_L      # ~3.60"
+_ANNOT_L  = 8.13
+_ANNOT_W  = 12.93 - _ANNOT_L     # ~4.80"
 
 # Grid uses a narrower chart so circles stay within the slide footprint
-_GRID_CHART_W  = 5.00
-_GRID_ANNOT_L  = 5.80
-_GRID_ANNOT_W  = 9.70 - _GRID_ANNOT_L   # ~3.90"
+_GRID_CHART_W  = 6.67
+_GRID_ANNOT_L  = 7.73
+_GRID_ANNOT_W  = 12.93 - _GRID_ANNOT_L  # ~5.20"
 
 
 # ---------------------------------------------------------------------------
@@ -546,10 +595,14 @@ def build_pptx(
     annotations: dict,
     output_path: str,
     logo_path: str | None = None,
+    template_path: str | None = None,
 ) -> str:
-    prs = Presentation()
-    prs.slide_width  = Inches(theme.SLIDE_W)
-    prs.slide_height = Inches(theme.SLIDE_H)
+    if template_path and Path(template_path).exists():
+        prs = _load_template(template_path)
+    else:
+        prs = Presentation()
+        prs.slide_width  = Inches(theme.SLIDE_W)
+        prs.slide_height = Inches(theme.SLIDE_H)
 
     result_map = {r.variable: r for r in results}
     page_num   = 1

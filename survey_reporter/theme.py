@@ -13,24 +13,24 @@ WHITE      = "#FFFFFF"
 LIKERT_COLORS = [TEAL_DARK, TEAL_MID, SALMON, CORAL, GRAY_MID]
 BAR_COLOR = TEAL_MID     # simple horizontal bar
 
-# Slide dimensions (inches) — standard 10 × 7.5
-SLIDE_W = 10.0
+# Slide dimensions (inches) — widescreen 13.33 × 7.5
+SLIDE_W = 13.33
 SLIDE_H = 7.5
 
 # Layout zones as (left, top, width, height) in inches
-LOGO_BOX     = (0.20, 0.08, 1.40, 0.42)
-PAGE_NUM_BOX = (9.30, 0.10, 0.50, 0.30)
-HEADING_BOX  = (0.30, 0.50, 9.40, 0.65)
-QUESTION_BOX = (0.30, 1.15, 9.40, 0.38)
-CHART_BOX    = (0.30, 1.58, 5.50, 5.30)
-ANNOT_BOX    = (6.05, 1.58, 3.65, 5.30)
-FOOTER_BOX   = (0.30, 7.10, 9.40, 0.28)
+LOGO_BOX     = (0.27, 0.08, 1.87, 0.42)
+PAGE_NUM_BOX = (12.40, 0.10, 0.67, 0.30)
+HEADING_BOX  = (0.40, 0.50, 12.53, 0.65)
+QUESTION_BOX = (0.40, 1.15, 12.53, 0.38)
+CHART_BOX    = (0.40, 1.58, 7.33, 5.30)
+ANNOT_BOX    = (8.07, 1.58, 4.87, 5.30)
+FOOTER_BOX   = (0.40, 7.10, 12.53, 0.28)
 
 # Stacked-bar circle fallback positions as (cx, cy, r) in inches
 # Used when chart_type == "stacked" (dynamic positioning not applicable).
 # The bar chart path computes positions dynamically instead.
-TOP_CIRCLE_CENTER_R    = (5.50, 2.90, 0.72)   # (cx, cy, radius)
-BOTTOM_CIRCLE_CENTER_R = (5.50, 4.80, 0.65)
+TOP_CIRCLE_CENTER_R    = (7.33, 2.90, 0.72)   # (cx, cy, radius)
+BOTTOM_CIRCLE_CENTER_R = (7.33, 4.80, 0.65)
 
 # Font sizes (points)
 FONT_HEADING   = 18
