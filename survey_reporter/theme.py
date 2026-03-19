@@ -26,9 +26,11 @@ CHART_BOX    = (0.30, 1.58, 5.50, 5.30)
 ANNOT_BOX    = (6.05, 1.58, 3.65, 5.30)
 FOOTER_BOX   = (0.30, 7.10, 9.40, 0.28)
 
-# Circle overlay positions (left, top, width, height) in inches
-TOP_CIRCLE    = (4.55, 2.20, 1.50, 1.50)
-BOTTOM_CIRCLE = (4.55, 4.00, 1.20, 1.20)
+# Stacked-bar circle fallback positions as (cx, cy, r) in inches
+# Used when chart_type == "stacked" (dynamic positioning not applicable).
+# The bar chart path computes positions dynamically instead.
+TOP_CIRCLE_CENTER_R    = (5.50, 2.90, 0.72)   # (cx, cy, radius)
+BOTTOM_CIRCLE_CENTER_R = (5.50, 4.80, 0.65)
 
 # Font sizes (points)
 FONT_HEADING   = 18
