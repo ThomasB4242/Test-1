@@ -35,7 +35,7 @@ _BOT_COLORS = [theme.SALMON, theme.CORAL]
 def _scale_bar_colors(labels_t2b: list[str],
                       top_box_spec: dict | None,
                       bottom_box_spec: dict | None) -> list[str]:
-    """Return per-bar hex colours based on top/bottom box membership."""
+    """Per-bar hex colours based on top/bottom box membership."""
     top_vals = set(top_box_spec.get("values", []) if top_box_spec else [])
     bot_vals = set(bottom_box_spec.get("values", []) if bottom_box_spec else [])
 
@@ -70,20 +70,36 @@ def _chart_h_for_n(n: int) -> float:
 # ---------------------------------------------------------------------------
 
 def _bar_circle_center_y(label_index: float, n_bars: int,
-                         chart_top: float, chart_h: float) -> float:
+                         chart_top: float, chart_h: float,
+                         axis_bottom: float | None = None) -> float:
     """Slide y-coordinate (inches) for the centre of bar at *label_index*.
 
-    Uses exported subplots_adjust margins so the circle aligns with the
-    actual rendered bar.  With invert_yaxis index 0 is at the TOP.
+    With invert_yaxis, index 0 is at the TOP.
     """
+    if axis_bottom is None:
+        axis_bottom = chart_styles.AXIS_BOTTOM
     ax_top = chart_top + (1.0 - chart_styles.AXIS_TOP) * chart_h
-    ax_h   = (chart_styles.AXIS_TOP - chart_styles.AXIS_BOTTOM) * chart_h
+    ax_h   = (chart_styles.AXIS_TOP - axis_bottom) * chart_h
     return ax_top + (label_index + 0.5) * (ax_h / n_bars)
 
 
-def _circle_cx(chart_left: float, chart_w: float, radius: float) -> float:
-    """Place circle so it overlaps the right end of the chart bars."""
-    return chart_left + chart_w - radius * 0.4
+def _circle_cx_for_pct(
+    pct: float,
+    chart_left: float,
+    chart_w: float,
+    axis_left: float = chart_styles.AXIS_LEFT,
+) -> float:
+    """Slide x-coordinate (inches) for a circle at *pct* along the x-axis."""
+    ax_w_frac = chart_styles.AXIS_RIGHT - axis_left
+    x_frac    = axis_left + (pct / 100.0) * ax_w_frac
+    return chart_left + x_frac * chart_w
+
+
+def _grid_circle_r(n_rows: int, chart_h: float) -> float:
+    """Radius (inches) sized to 40% of per-row height, capped at 0.36"."""
+    ax_h      = (chart_styles.AXIS_TOP - chart_styles.GRID_AXIS_BOTTOM) * chart_h
+    per_row_h = ax_h / n_rows
+    return float(min(0.36, per_row_h * 0.40))
 
 
 # ---------------------------------------------------------------------------
@@ -178,18 +194,35 @@ def _add_logo(slide, logo_path: str | None):
 # ---------------------------------------------------------------------------
 
 def _draw_circle_badge(slide, cx: float, cy: float, r: float,
-                       fill_color: str, pct: int, label: str):
-    """Draw a filled circle centred at (cx, cy) with radius r (all inches)."""
+                       fill_color: str, pct: int,
+                       label: str = "", show_label: bool = True):
+    """Draw a filled circle centred at (cx, cy) with radius r (inches).
+
+    When show_label=False the percentage number is centred in the circle
+    and no sub-label is drawn (use a legend entry to explain the circle).
+    """
     l, t, d = cx - r, cy - r, r * 2
     _add_oval(slide, (l, t, d, d), fill_color)
-    _add_textbox(slide, (l, t + d * 0.10, d, d * 0.52),
-                 f"{pct}%",
-                 font_size=theme.FONT_CIRCLE, color=theme.WHITE,
-                 bold=True, align=PP_ALIGN.CENTER)
-    _add_textbox(slide, (l, t + d * 0.58, d, d * 0.36),
-                 label,
-                 font_size=theme.FONT_CIRCLE_SM, color=theme.WHITE,
-                 align=PP_ALIGN.CENTER)
+
+    # Scale font size with circle radius
+    pct_fs    = max(9, int(r * 52))
+    label_fs  = max(7, int(r * 28))
+
+    if show_label and label:
+        _add_textbox(slide, (l, t + d * 0.10, d, d * 0.52),
+                     f"{pct}%",
+                     font_size=pct_fs, color=theme.WHITE,
+                     bold=True, align=PP_ALIGN.CENTER)
+        _add_textbox(slide, (l, t + d * 0.58, d, d * 0.36),
+                     label,
+                     font_size=label_fs, color=theme.WHITE,
+                     align=PP_ALIGN.CENTER)
+    else:
+        # Number only — vertically centred
+        _add_textbox(slide, (l, t + d * 0.22, d, d * 0.56),
+                     f"{pct}%",
+                     font_size=pct_fs, color=theme.WHITE,
+                     bold=True, align=PP_ALIGN.CENTER)
 
 
 def _sum_box(freq_by_label: dict, values: list[str]) -> int:
@@ -252,15 +285,16 @@ def add_commentary_slide(prs: Presentation, spec: dict, page_num: int | None = N
 # Layout constants
 # ---------------------------------------------------------------------------
 
-# Horizontal zones
-_CHART_L   = theme.CHART_BOX[0]   # 0.30"  chart left
-_CHART_W   = theme.CHART_BOX[2]   # 5.50"  chart width
-_ANNOT_L   = 6.10                  # annotation left (slightly past circle right)
-_ANNOT_W   = 9.70 - _ANNOT_L      # annotation width (~3.60")
+_CHART_L  = theme.CHART_BOX[0]   # 0.30"
+_CHART_W  = theme.CHART_BOX[2]   # 5.50"
+_CHART_T  = 1.55
+_ANNOT_L  = 6.10
+_ANNOT_W  = 9.70 - _ANNOT_L      # ~3.60"
 
-# Vertical zones
-_CHART_T   = 1.55                  # chart top (just below question text)
-_FOOTER_T  = theme.FOOTER_BOX[1]  # 7.10"
+# Grid uses a narrower chart so circles stay within the slide footprint
+_GRID_CHART_W  = 5.00
+_GRID_ANNOT_L  = 5.80
+_GRID_ANNOT_W  = 9.70 - _GRID_ANNOT_L   # ~3.90"
 
 
 # ---------------------------------------------------------------------------
@@ -303,10 +337,10 @@ def add_chart_slide(
 
         if chart_type == "stacked":
             row_labels = [""]
-            segments = [{"label": f.label, "values": [f.percent]} for f in freqs]
-            colors   = theme.LIKERT_COLORS[:len(segments)]
-            ch       = _chart_h_for_n(1)
-            chart_buf = chart_styles.render_stacked_bar(
+            segments   = [{"label": f.label, "values": [f.percent]} for f in freqs]
+            colors     = theme.LIKERT_COLORS[:len(segments)]
+            ch         = _chart_h_for_n(1)
+            chart_buf  = chart_styles.render_stacked_bar(
                 row_labels, segments, colors=colors, fig_h=ch)
             n_bars = 1
             labels_t2b = [""]
@@ -319,7 +353,7 @@ def add_chart_slide(
             chart_buf    = chart_styles.render_simple_bar(
                 labels_t2b, percents_t2b, bar_colors=bar_colors, fig_h=ch)
     else:
-        ch = _chart_h_for_n(5)  # default height when no data
+        ch = _chart_h_for_n(5)
 
     if chart_buf is not None:
         chart_buf.seek(0)
@@ -330,8 +364,8 @@ def add_chart_slide(
     # ── Circle badges ────────────────────────────────────────────────────────
     if result is not None and result.type == "categorical":
         freq_by_label = {f.label: f.percent for f in result.frequencies}
-        r  = 0.65
-        cx = _circle_cx(cl, cw, r)
+        r  = 0.62
+        cx = cl + cw - r * 0.4  # overlaps right edge of chart
 
         if chart_type == "bar" and n_bars > 0:
             if top_box_spec:
@@ -367,12 +401,6 @@ def add_chart_slide(
 # Grid slide  (multiple questions → stacked bar, one row per question)
 # ---------------------------------------------------------------------------
 
-# Grid uses a slightly narrower chart to leave room for per-row circles
-_GRID_CHART_W  = 5.00   # chart width for grid slides
-_GRID_CIRCLE_R = 0.46   # radius of per-row circle badges
-_GRID_ANNOT_L  = 6.20   # annotation left — clears the circles
-
-
 def add_grid_slide(
     prs: Presentation,
     spec: dict,
@@ -380,11 +408,10 @@ def add_grid_slide(
     page_num: int | None = None,
     logo_path: str | None = None,
 ):
-    """Render multiple related questions as a stacked horizontal bar chart.
+    """Stacked horizontal bar chart — one row per question.
 
-    Each row = one question / statement.
-    Each segment = one response option on the shared scale.
-    A circle badge per row shows the top-box total.
+    Circle badges are positioned at the actual pct% mark on each row's bar.
+    Only the number is shown in the circle; the legend explains the colour.
     """
     slide = _blank_slide(prs)
     _add_header_stripe(slide)
@@ -414,22 +441,19 @@ def add_grid_slide(
     cw     = _GRID_CHART_W
     ch     = _chart_h_for_n(n_rows)
 
-    # Determine scale order from first result if not specified
     if not scale_order:
         scale_order = [f.label for f in results[0].frequencies]
 
-    # Row labels
+    # Row labels (override or SPSS label, truncated if needed)
     row_labels = []
     for i, result in enumerate(results):
         if i < len(row_label_overrides) and row_label_overrides[i]:
             row_labels.append(row_label_overrides[i])
         else:
             lbl = result.label
-            if len(lbl) > 50:
-                lbl = lbl[:47] + "…"
-            row_labels.append(lbl)
+            row_labels.append(lbl[:50] + "…" if len(lbl) > 50 else lbl)
 
-    # Build segments (one per scale option in order)
+    # Build segments
     segments: list[dict] = []
     for opt_label in scale_order:
         values = []
@@ -439,7 +463,7 @@ def add_grid_slide(
             values.append(pct)
         segments.append({"label": opt_label, "values": values})
 
-    # Assign colours by scale position
+    # Segment colours
     top_vals = set(top_box_spec.get("values", []) if top_box_spec else [])
     bot_vals = set(bottom_box_spec.get("values", []) if bottom_box_spec else [])
     top_idx = bot_idx = 0
@@ -457,17 +481,17 @@ def add_grid_slide(
     # ── Render chart ─────────────────────────────────────────────────────────
     chart_buf = chart_styles.render_stacked_bar(
         row_labels, segments, colors=seg_colors,
-        fig_h=ch, axis_left=chart_styles.GRID_AXIS_LEFT,
+        fig_h=ch,
+        axis_left=chart_styles.GRID_AXIS_LEFT,
+        axis_bottom=chart_styles.GRID_AXIS_BOTTOM,
     )
     chart_buf.seek(0)
     slide.shapes.add_picture(chart_buf,
                              Inches(cl), Inches(ct),
                              width=Inches(cw), height=Inches(ch))
 
-    # ── Per-row circle badges (top-box) ──────────────────────────────────────
-    r  = _GRID_CIRCLE_R
-    cx = _circle_cx(cl, cw, r)
-    circle_label = top_box_spec.get("label", "") if top_box_spec else ""
+    # ── Per-row circle badges at actual pct% along bar ────────────────────────
+    r             = _grid_circle_r(n_rows, ch)
     top_vals_list = top_box_spec.get("values", []) if top_box_spec else []
 
     for row_i, result in enumerate(results):
@@ -475,35 +499,39 @@ def add_grid_slide(
             continue
         freq_by_label = {f.label: f.percent for f in result.frequencies}
         pct = _sum_box(freq_by_label, top_vals_list)
-        if pct > 0:
-            cy = _bar_circle_center_y(row_i, n_rows, ct, ch)
-            _draw_circle_badge(slide, cx, cy, r, theme.TEAL_MID,
-                               pct, circle_label)
+        if pct <= 0:
+            continue
+        cx = _circle_cx_for_pct(pct, cl, cw, axis_left=chart_styles.GRID_AXIS_LEFT)
+        cy = _bar_circle_center_y(row_i, n_rows, ct, ch,
+                                  axis_bottom=chart_styles.GRID_AXIS_BOTTOM)
+        _draw_circle_badge(slide, cx, cy, r, theme.TEAL_MID, pct,
+                           show_label=False)
 
-    # ── Legend strip (below chart) ────────────────────────────────────────────
-    # Legend includes segment swatches + a circle swatch for the top-box total
+    # ── Legend (circle for total, rectangles for segments) ───────────────────
+    circle_label  = top_box_spec.get("label", "Total") if top_box_spec else None
     legend_labels = [seg["label"] for seg in segments]
     leg_colors    = list(seg_colors)
-
-    # Prepend circle swatch for "total" if top_box defined
-    if top_box_spec and circle_label:
+    circle_idx: set[int] = set()
+    if circle_label:
         legend_labels = [circle_label] + legend_labels
         leg_colors    = [theme.TEAL_MID] + leg_colors
+        circle_idx    = {0}
 
-    leg_h  = 0.30
-    leg_t  = ct + ch + 0.08
-    leg_buf = chart_styles.legend_image(legend_labels, colors=leg_colors,
-                                        fig_w=cw)
+    leg_h   = 0.30
+    leg_t   = ct + ch + 0.08
+    leg_buf = chart_styles.legend_image(
+        legend_labels, colors=leg_colors,
+        fig_w=cw, circle_indices=circle_idx,
+    )
     leg_buf.seek(0)
     slide.shapes.add_picture(leg_buf,
                              Inches(cl), Inches(leg_t),
                              width=Inches(cw), height=Inches(leg_h))
 
     # ── Annotation panel ──────────────────────────────────────────────────────
-    annot_w = 9.70 - _GRID_ANNOT_L
     if annot_lines:
         _add_multiline_textbox(
-            slide, (_GRID_ANNOT_L, ct, annot_w, ch),
+            slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
             annot_lines, font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
 
     _add_footer(slide, base_note, page_num)

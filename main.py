@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
-survey-report — automate reports from SPSS .sav files.
+survey-report — automate reports from SPSS .sav or Excel toplines files.
 
 Usage:
-    # Generate a PowerPoint (default):
+    # SPSS input (default):
     python main.py survey.sav
-    python main.py survey.sav --output report.pptx --title "Energy Survey"
+    python main.py survey.sav --annotations annotations.yaml --output report.pptx
+
+    # Excel toplines input:
+    python main.py toplines.xlsx
+    python main.py toplines.xlsx --annotations annotations.yaml --output report.pptx
 
     # Scaffold an annotations YAML then use it:
     python main.py survey.sav --generate-annotations annotations.yaml
-    python main.py survey.sav --annotations annotations.yaml --output report.pptx
 
     # Generate a PDF instead:
     python main.py survey.sav --format pdf
@@ -28,7 +31,8 @@ def main(argv: list[str] | None = None) -> int:
         prog="survey-report",
         description="Generate a survey report (PowerPoint or PDF) from an SPSS .sav file.",
     )
-    parser.add_argument("sav_file", help="Path to the SPSS .sav file")
+    parser.add_argument("input_file",
+                        help="Path to an SPSS .sav file or an Excel toplines .xlsx file")
     parser.add_argument(
         "--output", "-o",
         default=None,
@@ -73,29 +77,31 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    sav_path = Path(args.sav_file)
-    title = args.title or sav_path.stem.replace("_", " ").replace("-", " ").title()
+    input_path = Path(args.input_file)
+    title = args.title or input_path.stem.replace("_", " ").replace("-", " ").title()
+    is_excel = input_path.suffix.lower() in {".xlsx", ".xls"}
 
-    print(f"Loading  : {sav_path}")
+    print(f"Loading  : {input_path}")
     try:
-        df, meta = load_survey(sav_path)
+        if is_excel:
+            from survey_reporter.excel_reader import load_toplines
+            results = load_toplines(input_path)
+            print(f"Variables: {len(results)}")
+        else:
+            df, meta = load_survey(input_path)
+            print(f"Rows     : {meta.n_rows:,}")
+            print(f"Variables: {len(meta.column_names)}")
+            skip_set = set(args.skip or [])
+            if skip_set:
+                keep = [c for c in meta.column_names if c not in skip_set]
+                df = df[keep]
+                meta.column_names = keep
+                print(f"Skipping : {', '.join(skip_set)}")
+            print("Analysing questions …")
+            results = analyze(df, meta)
     except FileNotFoundError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
-
-    print(f"Rows     : {meta.n_rows:,}")
-    print(f"Variables: {len(meta.column_names)}")
-
-    # Filter skipped variables
-    skip_set = set(args.skip or [])
-    if skip_set:
-        keep = [c for c in meta.column_names if c not in skip_set]
-        df = df[keep]
-        meta.column_names = keep
-        print(f"Skipping : {', '.join(skip_set)}")
-
-    print("Analysing questions …")
-    results = analyze(df, meta)
 
     # --generate-annotations: scaffold a YAML template and exit
     if args.generate_annotations:
@@ -105,9 +111,12 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- PDF path ---
     if args.format == "pdf":
+        if is_excel:
+            print("Error: PDF output is only supported for .sav input.", file=sys.stderr)
+            return 1
         from survey_reporter.report import build_report
-        output_path = Path(args.output) if args.output else sav_path.with_name(
-            sav_path.stem + "_report.pdf"
+        output_path = Path(args.output) if args.output else input_path.with_name(
+            input_path.stem + "_report.pdf"
         )
         print(f"Building PDF → {output_path}")
         build_report(results=results, output_path=output_path,
@@ -119,8 +128,8 @@ def main(argv: list[str] | None = None) -> int:
     from survey_reporter.annotations import load_annotations, auto_annotations
     from survey_reporter.slide_builder import build_pptx
 
-    output_path = Path(args.output) if args.output else sav_path.with_name(
-        sav_path.stem + "_report.pptx"
+    output_path = Path(args.output) if args.output else input_path.with_name(
+        input_path.stem + "_report.pptx"
     )
 
     if args.annotations:
