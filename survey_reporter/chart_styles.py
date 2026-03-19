@@ -41,6 +41,7 @@ def render_simple_bar(
     labels: List[str],
     values: List[float],
     color: str | None = None,
+    bar_colors: List[str] | None = None,
 ) -> io.BytesIO:
     """Render a simple horizontal bar chart.
 
@@ -54,14 +55,16 @@ def render_simple_bar(
     values : list[float]
         Percentages 0–100, matching *labels*.
     color : str | None
-        Hex colour.  Defaults to BAR_COLOR.
+        Single hex colour applied to all bars.  Ignored if *bar_colors* supplied.
+    bar_colors : list[str] | None
+        Per-bar hex colours (one per label).  Takes precedence over *color*.
 
     Returns
     -------
     io.BytesIO  PNG image data.
     """
-    if color is None:
-        color = theme.BAR_COLOR
+    if bar_colors is None:
+        bar_colors = [color or theme.BAR_COLOR] * len(labels)
 
     n = len(labels)
     fig, ax = plt.subplots(figsize=(CHART_FIG_W, CHART_FIG_H))
@@ -72,31 +75,24 @@ def render_simple_bar(
         top=AXIS_TOP, bottom=AXIS_BOTTOM,
     )
 
-    y_positions = list(range(n))
-    bars = ax.barh(
-        y_positions,
-        values,
-        height=0.65,
-        color=_hex_to_rgb(color),
-        linewidth=0,
-    )
-
     max_val = max(values) if values else 1
     ax.set_xlim(0, max_val * 1.08 + 4)
 
-    for bar, val in zip(bars, values):
-        w = bar.get_width()
-        cy = bar.get_y() + bar.get_height() / 2
+    # Draw bars individually so each gets its own colour
+    for i, (label, val, clr) in enumerate(zip(labels, values, bar_colors)):
+        ax.barh(i, val, height=0.65, color=_hex_to_rgb(clr), linewidth=0)
+        cy = i  # bar centre
+        # Use white text inside the bar, dark text outside for small bars
         if val >= 8:
-            ax.text(w / 2, cy, f"{int(round(val))}",
+            ax.text(val / 2, cy, f"{int(round(val))}",
                     ha="center", va="center",
                     fontsize=10, color="white", fontweight="bold")
         else:
-            ax.text(w + 1.0, cy, f"{int(round(val))}",
+            ax.text(val + 1.0, cy, f"{int(round(val))}",
                     ha="left", va="center",
                     fontsize=10, color=theme.GRAY_DARK, fontweight="bold")
 
-    ax.set_yticks(y_positions)
+    ax.set_yticks(list(range(n)))
     ax.set_yticklabels(labels, fontsize=10, color=theme.GRAY_DARK)
     ax.set_ylim(-0.55, n - 0.45)
     ax.invert_yaxis()   # index 0 displayed at TOP

@@ -75,74 +75,44 @@ slides:
   - type: section
     title: "Product & Service Ratings"
 
-  # ── Chart: Product quality ───────────────────────────────────────────────
-  - type: chart
-    variable: product_quality
-    heading: "Rating — product quality"
-    question: "Please rate the quality of our product. (%)"
-    chart_type: bar
+  # ── Grid: Product & service ratings ──────────────────────────────────────
+  # Grid slides combine multiple related questions into one stacked bar chart.
+  # scale_order: response options from most-positive (top) to most-negative.
+  - type: grid
+    variables:
+      - product_quality
+      - customer_service
+      - value_for_money
+    heading: "Ratings — product quality, customer service & value for money"
+    question: "Please rate each of the following. (%)"
+    scale_order:
+      - "Excellent"
+      - "Good"
+      - "Average"
+      - "Poor"
+      - "Very poor"
     top_box:
       label: "Good / Excellent"
       values:
-        - "Good"
         - "Excellent"
+        - "Good"
     bottom_box:
       label: "Poor / Very poor"
       values:
         - "Poor"
         - "Very poor"
+    row_labels:
+      - "Product quality"
+      - "Customer service"
+      - "Value for money"
     annotations:
-      - "Those aged 18–24 were more likely to rate quality as Excellent."
+      - "Good/Excellent ratings by measure:"
+      - "– Product quality:    XX%"
+      - "– Customer service:   XX%"
+      - "– Value for money:    XX%"
       - ""
-      - "Quality rating by region:"
-      - "– North:   XX% Good/Excellent"
-      - "– South:   XX% Good/Excellent"
-      - "– East:    XX% Good/Excellent"
-      - "– West:    XX% Good/Excellent"
-    base: "Base: all respondents (n=200)"
-
-  # ── Chart: Customer service ──────────────────────────────────────────────
-  - type: chart
-    variable: customer_service
-    heading: "Rating — customer service"
-    question: "Please rate your experience with customer service. (%)"
-    chart_type: bar
-    top_box:
-      label: "Good / Excellent"
-      values:
-        - "Good"
-        - "Excellent"
-    bottom_box:
-      label: "Poor / Very poor"
-      values:
-        - "Poor"
-        - "Very poor"
-    annotations:
-      - "Add subgroup commentary here."
-      - "– Under 35:   XX% Good/Excellent"
-      - "– 35 and over: XX% Good/Excellent"
-    base: "Base: all respondents (n=200)"
-
-  # ── Chart: Value for money ───────────────────────────────────────────────
-  - type: chart
-    variable: value_for_money
-    heading: "Rating — value for money"
-    question: "Please rate value for money. (%)"
-    chart_type: bar
-    top_box:
-      label: "Good / Excellent"
-      values:
-        - "Good"
-        - "Excellent"
-    bottom_box:
-      label: "Poor / Very poor"
-      values:
-        - "Poor"
-        - "Very poor"
-    annotations:
-      - "Value-for-money ratings were consistent across regions."
-      - ""
-      - "XX% of respondents rated value as Good or Excellent."
+      - "Those aged 18–24 were most positive"
+      - "about product quality."
     base: "Base: all respondents (n=200)"
 
   # ── Section divider ──────────────────────────────────────────────────────
