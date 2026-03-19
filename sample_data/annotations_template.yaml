@@ -1,0 +1,171 @@
+# Survey Report Annotations
+# -------------------------
+# This file controls every slide in the generated PowerPoint.
+# Edit headings, question text, bullet annotations, and base notes here,
+# then re-run:  python main.py sample_data/sample_survey.sav --annotations sample_data/annotations_template.yaml
+#
+# Slide types:
+#   cover       — full dark-teal title slide
+#   section     — dark-teal divider between topics
+#   commentary  — white slide with heading + bullet points (no chart)
+#   chart       — data slide with horizontal bar chart + optional annotation panel
+
+report:
+  title: "Customer Satisfaction Survey"
+  date: "March 2026"
+  base: "All respondents (n=200)"
+
+slides:
+
+  # ── Cover ────────────────────────────────────────────────────────────────
+  - type: cover
+    title: "Customer Satisfaction Survey"
+    subtitle: "March 2026"
+    base: "n=200 respondents"
+
+  # ── Section divider ──────────────────────────────────────────────────────
+  - type: section
+    title: "Satisfaction & Loyalty"
+
+  # ── Commentary ───────────────────────────────────────────────────────────
+  - type: commentary
+    heading: "Key findings — satisfaction & loyalty"
+    bold_intro: >
+      Satisfaction levels are evenly distributed, with roughly one-fifth of
+      respondents at each point on the scale.
+    bullets:
+      - "Overall satisfaction was mixed: ~20% very satisfied, ~20% very dissatisfied."
+      - "Recommend scores ranged from 0–10 with an approximately uniform spread."
+      - "Younger respondents (18–24) skewed slightly more positive on satisfaction."
+      - "Regional differences were minimal across all satisfaction measures."
+    base: "Base: all respondents (n=200)"
+
+  # ── Chart: Overall satisfaction ──────────────────────────────────────────
+  - type: chart
+    variable: overall_satisfaction
+    heading: "Overall satisfaction with our service"
+    question: "Overall, how satisfied are you with our service? (%)"
+    chart_type: stacked
+    top_box:
+      label: "Satisfied"
+      values:
+        - "Satisfied"
+        - "Very satisfied"
+    bottom_box:
+      label: "Dissatisfied"
+      values:
+        - "Dissatisfied"
+        - "Very dissatisfied"
+    annotations:
+      - "Satisfaction by age group:"
+      - "– 18–24:   XX% satisfied / XX% dissatisfied"
+      - "– 25–34:   XX% / XX%"
+      - "– 35–44:   XX% / XX%"
+      - "– 45–54:   XX% / XX%"
+      - "– 55+:     XX% / XX%"
+      - ""
+      - "Satisfaction by region:"
+      - "– North:   XX% satisfied"
+      - "– South:   XX% satisfied"
+      - "– East:    XX% satisfied"
+      - "– West:    XX% satisfied"
+    base: "Base: all respondents (n=200)"
+
+  # ── Section divider ──────────────────────────────────────────────────────
+  - type: section
+    title: "Product & Service Ratings"
+
+  # ── Chart: Product quality ───────────────────────────────────────────────
+  - type: chart
+    variable: product_quality
+    heading: "Rating — product quality"
+    question: "Please rate the quality of our product. (%)"
+    chart_type: stacked
+    top_box:
+      label: "Good / Excellent"
+      values:
+        - "Good"
+        - "Excellent"
+    bottom_box:
+      label: "Poor / Very poor"
+      values:
+        - "Poor"
+        - "Very poor"
+    annotations:
+      - "Those aged 18–24 were more likely to rate quality as Excellent."
+      - ""
+      - "Quality rating by region:"
+      - "– North:   XX% Good/Excellent"
+      - "– South:   XX% Good/Excellent"
+      - "– East:    XX% Good/Excellent"
+      - "– West:    XX% Good/Excellent"
+    base: "Base: all respondents (n=200)"
+
+  # ── Chart: Customer service ──────────────────────────────────────────────
+  - type: chart
+    variable: customer_service
+    heading: "Rating — customer service"
+    question: "Please rate your experience with customer service. (%)"
+    chart_type: stacked
+    top_box:
+      label: "Good / Excellent"
+      values:
+        - "Good"
+        - "Excellent"
+    bottom_box:
+      label: "Poor / Very poor"
+      values:
+        - "Poor"
+        - "Very poor"
+    annotations:
+      - "Add subgroup commentary here."
+      - "– Under 35:   XX% Good/Excellent"
+      - "– 35 and over: XX% Good/Excellent"
+    base: "Base: all respondents (n=200)"
+
+  # ── Chart: Value for money ───────────────────────────────────────────────
+  - type: chart
+    variable: value_for_money
+    heading: "Rating — value for money"
+    question: "Please rate value for money. (%)"
+    chart_type: stacked
+    top_box:
+      label: "Good / Excellent"
+      values:
+        - "Good"
+        - "Excellent"
+    bottom_box:
+      label: "Poor / Very poor"
+      values:
+        - "Poor"
+        - "Very poor"
+    annotations:
+      - "Value-for-money ratings were consistent across regions."
+      - ""
+      - "XX% of respondents rated value as Good or Excellent."
+    base: "Base: all respondents (n=200)"
+
+  # ── Section divider ──────────────────────────────────────────────────────
+  - type: section
+    title: "Demographics"
+
+  # ── Chart: Region ────────────────────────────────────────────────────────
+  - type: chart
+    variable: region
+    heading: "Respondent region"
+    question: "Which region are you based in? (%)"
+    chart_type: bar
+    annotations:
+      - "Sample is evenly spread across four regions."
+      - "North, South, East and West each represent approximately 25%."
+    base: "Base: all respondents (n=200)"
+
+  # ── Chart: Age group ─────────────────────────────────────────────────────
+  - type: chart
+    variable: age_group
+    heading: "Respondent age group"
+    question: "What is your age group? (%)"
+    chart_type: bar
+    annotations:
+      - "Each age band represents roughly 20% of the sample."
+    base: "Base: all respondents (n=200)"

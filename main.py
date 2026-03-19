@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """
-survey-report — automate PDF reports from SPSS .sav files.
+survey-report — automate reports from SPSS .sav files.
 
 Usage:
+    # Generate a PowerPoint (default):
     python main.py survey.sav
-    python main.py survey.sav --output report.pdf --title "Customer Satisfaction Q1 2026"
+    python main.py survey.sav --output report.pptx --title "Energy Survey"
+
+    # Scaffold an annotations YAML then use it:
+    python main.py survey.sav --generate-annotations annotations.yaml
+    python main.py survey.sav --annotations annotations.yaml --output report.pptx
+
+    # Generate a PDF instead:
+    python main.py survey.sav --format pdf
 """
 
 import argparse
@@ -13,24 +21,47 @@ from pathlib import Path
 
 from survey_reporter.reader import load_survey
 from survey_reporter.analyzer import analyze
-from survey_reporter.report import build_report
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="survey-report",
-        description="Generate a PDF survey report from an SPSS .sav file.",
+        description="Generate a survey report (PowerPoint or PDF) from an SPSS .sav file.",
     )
     parser.add_argument("sav_file", help="Path to the SPSS .sav file")
     parser.add_argument(
         "--output", "-o",
         default=None,
-        help="Output PDF path (default: <sav_file stem>_report.pdf)",
+        help="Output file path (default: <sav_file stem>_report.pptx or .pdf)",
+    )
+    parser.add_argument(
+        "--format", "-f",
+        choices=["pptx", "pdf"],
+        default="pptx",
+        help="Output format: pptx (default) or pdf",
     )
     parser.add_argument(
         "--title", "-t",
         default=None,
-        help='Report title (default: derived from file name)',
+        help="Report title (default: derived from file name)",
+    )
+    parser.add_argument(
+        "--annotations", "-a",
+        default=None,
+        metavar="YAML_FILE",
+        help="Path to a YAML annotations file (headings, question text, bullet notes)",
+    )
+    parser.add_argument(
+        "--generate-annotations",
+        default=None,
+        metavar="OUT_YAML",
+        help="Scaffold an annotations YAML template from the .sav file and exit",
+    )
+    parser.add_argument(
+        "--logo",
+        default=None,
+        metavar="IMAGE_FILE",
+        help="Path to a logo image to embed in slides",
     )
     parser.add_argument(
         "--skip", "-s",
@@ -43,11 +74,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     sav_path = Path(args.sav_file)
-
-    # Defaults
-    output_path = Path(args.output) if args.output else sav_path.with_name(
-        sav_path.stem + "_report.pdf"
-    )
     title = args.title or sav_path.stem.replace("_", " ").replace("-", " ").title()
 
     print(f"Loading  : {sav_path}")
@@ -71,12 +97,45 @@ def main(argv: list[str] | None = None) -> int:
     print("Analysing questions …")
     results = analyze(df, meta)
 
-    print(f"Building PDF → {output_path}")
-    build_report(
+    # --generate-annotations: scaffold a YAML template and exit
+    if args.generate_annotations:
+        from survey_reporter.annotations import save_template
+        save_template(results, args.generate_annotations, title=title)
+        return 0
+
+    # --- PDF path ---
+    if args.format == "pdf":
+        from survey_reporter.report import build_report
+        output_path = Path(args.output) if args.output else sav_path.with_name(
+            sav_path.stem + "_report.pdf"
+        )
+        print(f"Building PDF → {output_path}")
+        build_report(results=results, output_path=output_path,
+                     title=title, n_responses=meta.n_rows)
+        print(f"Done!    : {output_path}")
+        return 0
+
+    # --- PowerPoint path (default) ---
+    from survey_reporter.annotations import load_annotations, auto_annotations
+    from survey_reporter.slide_builder import build_pptx
+
+    output_path = Path(args.output) if args.output else sav_path.with_name(
+        sav_path.stem + "_report.pptx"
+    )
+
+    if args.annotations:
+        print(f"Annotations: {args.annotations}")
+        ann = load_annotations(args.annotations)
+    else:
+        print("Annotations: auto-generated (no YAML supplied)")
+        ann = auto_annotations(results, title=title)
+
+    print(f"Building PPTX → {output_path}")
+    build_pptx(
         results=results,
-        output_path=output_path,
-        title=title,
-        n_responses=meta.n_rows,
+        annotations=ann,
+        output_path=str(output_path),
+        logo_path=args.logo,
     )
 
     print(f"Done!    : {output_path}")
