@@ -2,140 +2,167 @@
 # -------------------------
 # This file controls every slide in the generated PowerPoint.
 # Edit headings, question text, bullet annotations, and base notes here,
-# then re-run:  python main.py sample_data/sample_survey.sav --annotations sample_data/annotations_template.yaml
+# then re-run:
+#   python main.py sample_data/sample_survey.sav --annotations sample_data/annotations_template.yaml
 #
 # Slide types:
 #   cover       — full dark-teal title slide
 #   section     — dark-teal divider between topics
-#   commentary  — white slide with heading + bullet points (no chart)
-#   chart       — data slide with horizontal bar chart + optional annotation panel
+#   commentary  — white slide with heading + bullets (no chart)
+#   chart       — data slide: single question, individual horizontal bars
+#   grid        — data slide: multiple related questions, stacked horizontal bars
 
 report:
-  title: "Customer Satisfaction Survey"
+  title: "Community Attitudes Survey"
   date: "March 2026"
   base: "All respondents (n=200)"
 
 slides:
 
-  # ── Cover ────────────────────────────────────────────────────────────────
+  # ── Cover ─────────────────────────────────────────────────────────────────
   - type: cover
-    title: "Customer Satisfaction Survey"
+    title: "Community Attitudes Survey"
     subtitle: "March 2026"
-    base: "n=200 respondents"
+    base: "n=200 adult residents"
 
-  # ── Section divider ──────────────────────────────────────────────────────
+  # ── Section divider ───────────────────────────────────────────────────────
   - type: section
-    title: "Satisfaction & Loyalty"
+    title: "Concern & Salience"
 
-  # ── Commentary ───────────────────────────────────────────────────────────
+  # ── Commentary ────────────────────────────────────────────────────────────
   - type: commentary
-    heading: "Key findings — satisfaction & loyalty"
+    heading: "Key findings — concern & community attitudes"
     bold_intro: >
-      Satisfaction levels are evenly distributed, with roughly one-fifth of
-      respondents at each point on the scale.
+      Strong concern about the issue is evident across the community, with
+      scepticism about how government is currently handling it.
     bullets:
-      - "Overall satisfaction was mixed: ~20% very satisfied, ~20% very dissatisfied."
-      - "Recommend scores ranged from 0–10 with an approximately uniform spread."
-      - "Younger respondents (18–24) skewed slightly more positive on satisfaction."
-      - "Regional differences were minimal across all satisfaction measures."
+      - "Over 60% are very or extremely concerned — concern is highest among 35–54 year olds."
+      - "Agreement that this issue impacts everyday people is broad, cutting across regions."
+      - "Government handling is rated poorly — fewer than 1 in 5 agree government is handling it well."
+      - "There is strong appetite for local action alongside calls for stronger government leadership."
     base: "Base: all respondents (n=200)"
 
-  # ── Chart: Overall satisfaction ──────────────────────────────────────────
+  # ── Chart: Issue concern ──────────────────────────────────────────────────
   - type: chart
-    variable: overall_satisfaction
-    heading: "Overall satisfaction with our service"
-    question: "Overall, how satisfied are you with our service? (%)"
+    variable: issue_concern
+    heading: "Concern about the issue"
+    question: "How concerned are you about this issue in your community? (%)"
     chart_type: bar
     top_box:
-      label: "Satisfied"
+      label: "Concerned"
       values:
-        - "Satisfied"
-        - "Very satisfied"
+        - "Very concerned"
+        - "Extremely concerned"
     bottom_box:
-      label: "Dissatisfied"
+      label: "Not concerned"
       values:
-        - "Dissatisfied"
-        - "Very dissatisfied"
+        - "Not very concerned"
+        - "Not at all concerned"
     annotations:
-      - "Satisfaction by age group:"
-      - "– 18–24:   XX% satisfied / XX% dissatisfied"
-      - "– 25–34:   XX% / XX%"
-      - "– 35–44:   XX% / XX%"
-      - "– 45–54:   XX% / XX%"
-      - "– 55+:     XX% / XX%"
+      - "Concern by age group:"
+      - "– 18–24:   XX% very/extremely concerned"
+      - "– 25–34:   XX%"
+      - "– 35–44:   XX%"
+      - "– 45–54:   XX%"
+      - "– 55+:     XX%"
       - ""
-      - "Satisfaction by region:"
-      - "– North:   XX% satisfied"
-      - "– South:   XX% satisfied"
-      - "– East:    XX% satisfied"
-      - "– West:    XX% satisfied"
+      - "Concern by region:"
+      - "– Metro:      XX%"
+      - "– Regional:   XX%"
+      - "– Rural:      XX%"
     base: "Base: all respondents (n=200)"
 
-  # ── Section divider ──────────────────────────────────────────────────────
-  - type: section
-    title: "Product & Service Ratings"
+  # ── Chart: Government handling ────────────────────────────────────────────
+  - type: chart
+    variable: govt_handling
+    heading: "Rating — government handling of this issue"
+    question: "The government is handling this issue effectively. (%)"
+    chart_type: bar
+    top_box:
+      label: "Agree"
+      values:
+        - "Agree"
+        - "Strongly agree"
+    bottom_box:
+      label: "Disagree"
+      values:
+        - "Disagree"
+        - "Strongly disagree"
+    annotations:
+      - "Scepticism about government performance"
+      - "is consistent across all demographics."
+      - ""
+      - "Disagreement is highest among:"
+      - "– 35–54 year olds (XX%)"
+      - "– Regional residents (XX%)"
+    base: "Base: all respondents (n=200)"
 
-  # ── Grid: Product & service ratings ──────────────────────────────────────
+  # ── Section divider ───────────────────────────────────────────────────────
+  - type: section
+    title: "Attitudes & Beliefs"
+
+  # ── Grid: Agreement statements ────────────────────────────────────────────
   # Grid slides combine multiple related questions into one stacked bar chart.
-  # scale_order: response options from most-positive (top) to most-negative.
+  # scale_order: list response options from most-positive (top) to most-negative.
   - type: grid
     variables:
-      - product_quality
-      - customer_service
-      - value_for_money
-    heading: "Ratings — product quality, customer service & value for money"
-    question: "Please rate each of the following. (%)"
+      - stmt_community
+      - stmt_govt_role
+      - stmt_local_action
+    heading: "Agreement — statements about the issue"
+    question: "How strongly do you agree or disagree with each of the following statements? (%)"
     scale_order:
-      - "Excellent"
-      - "Good"
-      - "Average"
-      - "Poor"
-      - "Very poor"
+      - "Strongly agree"
+      - "Agree"
+      - "Neither agree nor disagree"
+      - "Disagree"
+      - "Strongly disagree"
     top_box:
-      label: "Good / Excellent"
+      label: "Total agree"
       values:
-        - "Excellent"
-        - "Good"
+        - "Strongly agree"
+        - "Agree"
     bottom_box:
-      label: "Poor / Very poor"
+      label: "Total disagree"
       values:
-        - "Poor"
-        - "Very poor"
+        - "Disagree"
+        - "Strongly disagree"
     row_labels:
-      - "Product quality"
-      - "Customer service"
-      - "Value for money"
+      - "This issue has a direct impact on everyday people in our community"
+      - "Government must take a stronger leadership role on this issue"
+      - "Local action can make a meaningful difference on this issue"
     annotations:
-      - "Good/Excellent ratings by measure:"
-      - "– Product quality:    XX%"
-      - "– Customer service:   XX%"
-      - "– Value for money:    XX%"
+      - "Total agree by statement:"
+      - "– Community impact:   XX%"
+      - "– Govt leadership:    XX%"
+      - "– Local action:       XX%"
       - ""
-      - "Those aged 18–24 were most positive"
-      - "about product quality."
+      - "Agreement is broadly consistent"
+      - "across age groups and regions."
     base: "Base: all respondents (n=200)"
 
-  # ── Section divider ──────────────────────────────────────────────────────
+  # ── Section divider ───────────────────────────────────────────────────────
   - type: section
     title: "Demographics"
 
-  # ── Chart: Region ────────────────────────────────────────────────────────
+  # ── Chart: Region ─────────────────────────────────────────────────────────
   - type: chart
     variable: region
     heading: "Respondent region"
     question: "Which region are you based in? (%)"
     chart_type: bar
     annotations:
-      - "Sample is evenly spread across four regions."
-      - "North, South, East and West each represent approximately 25%."
+      - "Sample is spread across metro, regional,"
+      - "rural and remote areas."
     base: "Base: all respondents (n=200)"
 
-  # ── Chart: Age group ─────────────────────────────────────────────────────
+  # ── Chart: Age group ──────────────────────────────────────────────────────
   - type: chart
     variable: age_group
     heading: "Respondent age group"
     question: "What is your age group? (%)"
     chart_type: bar
     annotations:
-      - "Each age band represents roughly 20% of the sample."
+      - "Sample skews slightly toward working-age"
+      - "adults (35–54)."
     base: "Base: all respondents (n=200)"

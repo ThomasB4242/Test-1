@@ -1,4 +1,9 @@
-"""Generate a small synthetic SPSS .sav file for testing."""
+"""Generate a synthetic SPSS .sav file for issues-based survey testing.
+
+Simulates a community attitudes survey on an issue of public concern —
+the type of research Talbot Mills Research conducts for political and
+corporate clients wanting to understand community sentiment and social licence.
+"""
 
 import random
 import sys
@@ -14,40 +19,87 @@ except ImportError:
 random.seed(42)
 N = 200
 
+
+def weighted(options, weights):
+    return random.choices(options, weights=weights, k=1)[0]
+
+
+# Build data with realistic skews (not uniform random)
 data = {
     "respondent_id": list(range(1, N + 1)),
-    "overall_satisfaction": [random.randint(1, 5) for _ in range(N)],
-    "recommend_score": [random.randint(0, 10) for _ in range(N)],
-    "product_quality": [random.choice([1, 2, 3, 4, 5]) for _ in range(N)],
-    "customer_service": [random.choice([1, 2, 3, 4, 5]) for _ in range(N)],
-    "value_for_money": [random.choice([1, 2, 3, 4, 5]) for _ in range(N)],
+
+    # Concern about the issue (skewed toward concerned)
+    "issue_concern": [
+        weighted([1, 2, 3, 4, 5], [5, 10, 20, 35, 30])
+        for _ in range(N)
+    ],
+
+    # Agreement: Government is handling this issue well (sceptical skew)
+    "govt_handling": [
+        weighted([1, 2, 3, 4, 5], [28, 35, 20, 12, 5])
+        for _ in range(N)
+    ],
+
+    # Grid: Three agreement statements about the issue
+    "stmt_community": [
+        weighted([1, 2, 3, 4, 5], [5, 10, 18, 35, 32])
+        for _ in range(N)
+    ],
+    "stmt_govt_role": [
+        weighted([1, 2, 3, 4, 5], [8, 15, 22, 30, 25])
+        for _ in range(N)
+    ],
+    "stmt_local_action": [
+        weighted([1, 2, 3, 4, 5], [6, 12, 20, 33, 29])
+        for _ in range(N)
+    ],
+
+    # Region (demographic)
     "region": [random.choice([1, 2, 3, 4]) for _ in range(N)],
-    "age_group": [random.choice([1, 2, 3, 4, 5]) for _ in range(N)],
+
+    # Age group (demographic)
+    "age_group": [
+        weighted([1, 2, 3, 4, 5], [15, 20, 25, 22, 18])
+        for _ in range(N)
+    ],
 }
 
 df = pd.DataFrame(data)
 
 variable_labels = {
-    "respondent_id": "Respondent ID",
-    "overall_satisfaction": "Overall, how satisfied are you with our service?",
-    "recommend_score": "How likely are you to recommend us? (0-10)",
-    "product_quality": "Please rate the quality of our product.",
-    "customer_service": "Please rate your experience with customer service.",
-    "value_for_money": "Please rate value for money.",
-    "region": "Which region are you based in?",
-    "age_group": "What is your age group?",
+    "respondent_id":  "Respondent ID",
+    "issue_concern":  "How concerned are you about this issue in your community?",
+    "govt_handling":  "The government is handling this issue effectively.",
+    "stmt_community": "This issue has a direct impact on everyday people in our community.",
+    "stmt_govt_role": "Government must take a stronger leadership role on this issue.",
+    "stmt_local_action": "Local action can make a meaningful difference on this issue.",
+    "region":         "Which region are you based in?",
+    "age_group":      "What is your age group?",
 }
 
-likert_5 = {1: "Very dissatisfied", 2: "Dissatisfied", 3: "Neutral", 4: "Satisfied", 5: "Very satisfied"}
-quality_5 = {1: "Very poor", 2: "Poor", 3: "Average", 4: "Good", 5: "Excellent"}
+concern_5 = {
+    1: "Not at all concerned",
+    2: "Not very concerned",
+    3: "Somewhat concerned",
+    4: "Very concerned",
+    5: "Extremely concerned",
+}
+agree_5 = {
+    1: "Strongly disagree",
+    2: "Disagree",
+    3: "Neither agree nor disagree",
+    4: "Agree",
+    5: "Strongly agree",
+}
 
 value_labels = {
-    "overall_satisfaction": likert_5,
-    "product_quality": quality_5,
-    "customer_service": quality_5,
-    "value_for_money": quality_5,
-    "region": {1: "North", 2: "South", 3: "East", 4: "West"},
-    "age_group": {1: "18-24", 2: "25-34", 3: "35-44", 4: "45-54", 5: "55+"},
+    "issue_concern":     concern_5,
+    "govt_handling":     agree_5,
+    "stmt_community":    agree_5,
+    "stmt_govt_role":    agree_5,
+    "stmt_local_action": agree_5,
+    "region":    {1: "Metro", 2: "Regional", 3: "Rural", 4: "Remote"},
+    "age_group": {1: "18–24", 2: "25–34", 3: "35–44", 4: "45–54", 5: "55+"},
 }
 
 out = Path(__file__).parent / "sample_survey.sav"
