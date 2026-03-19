@@ -119,6 +119,7 @@ def _add_textbox(slide, ltwh, text: str, font_size: int, color: str,
     p.alignment = align
     run = p.add_run()
     run.text = text
+    run.font.name = theme.FONT_FACE
     run.font.size = Pt(font_size)
     run.font.color.rgb = _rgb(color)
     run.font.bold = bold
@@ -136,6 +137,7 @@ def _add_multiline_textbox(slide, ltwh, lines: list[str], font_size: int,
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         run = p.add_run()
         run.text = line
+        run.font.name = theme.FONT_FACE
         run.font.size = Pt(font_size)
         run.font.color.rgb = _rgb(color)
         run.font.bold = bold
@@ -215,16 +217,18 @@ def _load_template(template_path: str) -> Presentation:
 # Shared slide furniture
 # ---------------------------------------------------------------------------
 
-def _add_header_stripe(slide):
-    _add_filled_rect(slide, (0, 0, theme.SLIDE_W, 0.50), theme.TEAL_DARK)
+def _add_heading_rule(slide):
+    """Thin teal rule under the heading area — replaces the old full-width stripe."""
+    _add_filled_rect(slide, (0.34, 1.10, theme.SLIDE_W - 0.34, 0.03), theme.TEAL_DARK)
 
 
 def _add_footer(slide, base_note: str, page_num: int | None):
+    # Footer sits above the master logo (logo is at y≈6.85", h≈0.40")
     _add_textbox(slide, theme.FOOTER_BOX, base_note,
                  font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK, italic=True)
     if page_num is not None:
         _add_textbox(slide, theme.PAGE_NUM_BOX, str(page_num),
-                     font_size=theme.FONT_FOOTER, color=theme.WHITE,
+                     font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK,
                      align=PP_ALIGN.RIGHT)
 
 
@@ -314,7 +318,7 @@ def add_section_slide(prs: Presentation, spec: dict, logo_path: str | None = Non
 
 def add_commentary_slide(prs: Presentation, spec: dict, page_num: int | None = None):
     slide = _blank_slide(prs)
-    _add_header_stripe(slide)
+    _add_heading_rule(slide)
     heading = spec.get("heading", "Commentary")
     _add_textbox(slide, theme.HEADING_BOX, heading,
                  font_size=theme.FONT_HEADING, color=theme.CORAL, bold=True)
@@ -334,9 +338,9 @@ def add_commentary_slide(prs: Presentation, spec: dict, page_num: int | None = N
 # Layout constants
 # ---------------------------------------------------------------------------
 
-_CHART_L  = theme.CHART_BOX[0]   # 0.40"
+_CHART_L  = theme.CHART_BOX[0]   # 0.34"
 _CHART_W  = theme.CHART_BOX[2]   # 7.33"
-_CHART_T  = 1.55
+_CHART_T  = 1.60
 _ANNOT_L  = 8.13
 _ANNOT_W  = 12.93 - _ANNOT_L     # ~4.80"
 
@@ -358,7 +362,7 @@ def add_chart_slide(
     logo_path: str | None = None,
 ):
     slide = _blank_slide(prs)
-    _add_header_stripe(slide)
+    _add_heading_rule(slide)
     _add_logo(slide, logo_path)
 
     heading         = spec.get("heading", result.label if result else "")
@@ -463,7 +467,7 @@ def add_grid_slide(
     Only the number is shown in the circle; the legend explains the colour.
     """
     slide = _blank_slide(prs)
-    _add_header_stripe(slide)
+    _add_heading_rule(slide)
     _add_logo(slide, logo_path)
 
     heading             = spec.get("heading", "")
