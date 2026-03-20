@@ -127,20 +127,37 @@ def _add_textbox(slide, ltwh, text: str, font_size: int, color: str,
     return txBox
 
 
-def _add_multiline_textbox(slide, ltwh, lines: list[str], font_size: int,
+def _add_multiline_textbox(slide, ltwh, lines: list, font_size: int,
                            color: str, bold: bool = False) -> Any:
+    """Add a multi-line textbox.
+
+    Each item in *lines* may be:
+    - a plain ``str``  → rendered in *color*
+    - a ``dict`` with keys ``text`` (str) and optionally ``color``
+      ("teal" → TEAL_MID, "coral" → CORAL, else *color* default)
+    """
+    _COLOR_MAP = {"teal": theme.TEAL_MID, "coral": theme.CORAL}
+
     l, t, w, h = ltwh
     txBox = slide.shapes.add_textbox(Inches(l), Inches(t), Inches(w), Inches(h))
     tf = txBox.text_frame
     tf.word_wrap = True
-    for i, line in enumerate(lines):
+    for i, item in enumerate(lines):
+        if isinstance(item, dict):
+            text      = item.get("text", "")
+            line_color = _COLOR_MAP.get(item.get("color", ""), color)
+            line_bold  = item.get("bold", bold)
+        else:
+            text      = str(item)
+            line_color = color
+            line_bold  = bold
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         run = p.add_run()
-        run.text = line
+        run.text = text
         run.font.name = theme.FONT_FACE
         run.font.size = Pt(font_size)
-        run.font.color.rgb = _rgb(color)
-        run.font.bold = bold
+        run.font.color.rgb = _rgb(line_color)
+        run.font.bold = line_bold
     return txBox
 
 
@@ -541,9 +558,10 @@ def add_chart_slide(
 
     # ── Annotation panel — positioned in the right teal panel ────────────────
     if annot_lines:
+        annot_font = spec.get("annotation_font", _ANNOT_FONT)
         _add_multiline_textbox(
             slide, (_ANNOT_L, ct, _ANNOT_W, ch),
-            annot_lines, font_size=_ANNOT_FONT, color=theme.GRAY_DARK)
+            annot_lines, font_size=annot_font, color=theme.GRAY_DARK)
 
     # Base note: use template placeholder idx=22 if available, else manual footer
     if not _fill_placeholder(slide, 22, base_note):
@@ -624,12 +642,14 @@ def add_grid_slide(
         total_percents.append(tp)
 
     if top_vals_list:
-        sorted_triples = sorted(
-            zip(total_percents, results, row_labels), reverse=True
+        indexed = sorted(
+            enumerate(zip(total_percents, row_labels)),
+            key=lambda x: (-x[1][0], x[0]),   # desc pct, stable original order
         )
-        total_percents = [p for p, _, _ in sorted_triples]
-        results        = [r for _, r, _ in sorted_triples]
-        row_labels     = [l for _, _, l in sorted_triples]
+        order          = [i for i, _ in indexed]
+        total_percents = [total_percents[i] for i in order]
+        results        = [results[i]        for i in order]
+        row_labels     = [row_labels[i]     for i in order]
 
     n_rows = len(results)
     cl     = _CHART_L
@@ -687,17 +707,10 @@ def add_grid_slide(
 
     # ── Annotation panel ──────────────────────────────────────────────────────
     if annot_lines:
-        # Try template placeholder idx=19 first (annotation area on right)
-        ph = _fill_placeholder(slide, 19, annot_lines[0])
-        if ph and len(annot_lines) > 1:
-            tf = ph.text_frame
-            for line in annot_lines[1:]:
-                p2 = tf.add_paragraph()
-                p2.add_run().text = line
-        if not ph:
-            _add_multiline_textbox(
-                slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
-                annot_lines, font_size=_ANNOT_FONT, color=theme.GRAY_DARK)
+        annot_font = spec.get("annotation_font", _ANNOT_FONT)
+        _add_multiline_textbox(
+            slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
+            annot_lines, font_size=annot_font, color=theme.GRAY_DARK)
 
     # Base: layout '3_Title Slide' uses idx=22 for footer (at y=7.08")
     if not _fill_placeholder(slide, 22, base_note):

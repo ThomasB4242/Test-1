@@ -1,24 +1,27 @@
 """Read an Excel toplines table into QuestionResult objects.
 
-Expected format (one row per response option):
-    Column A  variable      — SPSS-style variable name  (e.g. "issue_concern")
-    Column B  question      — Question text / label
-    Column C  response      — Response option label     (e.g. "Very concerned")
-    Column D  n             — Count (integer)
-    Column E  pct           — Percentage 0–100          (e.g. 30.5)
+Two formats are supported:
 
-The first row must be a header row (column names are case-insensitive).
-Rows for the same variable are collected into one QuestionResult, preserving
-the order they appear in the file.
+1. Flat format (load_toplines)
+   Column A  variable  — SPSS-style variable name
+   Column B  question  — Question text / label
+   Column C  response  — Response option label
+   Column D  n         — Count (integer)
+   Column E  pct       — Percentage 0–100
 
-Alternatively the file may contain a sheet per section; the reader processes
-all sheets by default (pass sheet_name to target one).
+2. Matrix / output toplines format (load_toplines_matrix)
+   The formatted output produced by crosstab software (Q, SPSS, etc.).
+   Each table starts with "Back to TOC" sentinel, followed by question text,
+   column headers, data rows, and a "base n = N" footer.
+   Two sub-types:
+     - "grid_rows"  : each data row → one QuestionResult (grid battery)
+     - "single"     : all data rows → one QuestionResult (single question)
 
 Usage
 -----
-    from survey_reporter.excel_reader import load_toplines
-    results = load_toplines("toplines.xlsx")
-    # then pass to build_pptx just like SPSS results
+    from survey_reporter.excel_reader import load_toplines, load_toplines_matrix
+    results = load_toplines("flat_toplines.xlsx")
+    results = load_toplines_matrix("output_toplines.xlsx", VARIABLE_MAP)
 """
 from __future__ import annotations
 
@@ -161,3 +164,176 @@ def _num(row: tuple, idx: int | None) -> float | None:
         return float(v)
     except (TypeError, ValueError):
         return None
+
+
+# ---------------------------------------------------------------------------
+# Matrix / output toplines parser
+# ---------------------------------------------------------------------------
+
+def load_toplines_matrix(
+    path: str | Path,
+    variable_map: dict,
+    sheet_name: str = "Tables",
+) -> list[QuestionResult]:
+    """Parse a formatted output-toplines Excel file into QuestionResult objects.
+
+    Parameters
+    ----------
+    path         : Path to the .xlsx file.
+    variable_map : Dict mapping a partial question-text string (lower-case match)
+                   to a table spec.  Two spec types are supported:
+
+                   ``type="grid_rows"`` — each data row → one QuestionResult::
+
+                       {
+                           "type": "grid_rows",
+                           "row_vars": {
+                               "Coal": "energy_climate_coal",
+                               ...
+                           },
+                           "label_map": {"Coal": "Coal"},   # optional display labels
+                           "question_label": "...",
+                           "n": 1011,
+                       }
+
+                   ``type="single"`` — all data rows → one QuestionResult::
+
+                       {
+                           "type": "single",
+                           "variable": "energy_concern",
+                           "question_label": "...",
+                           "n": 1011,
+                           "exclude_rows": ["TOTAL SUPPORT", ...],  # optional
+                           "label_map": {"long label...": "Short label"},  # optional
+                       }
+
+    sheet_name   : Sheet in the workbook that contains the tables (default "Tables").
+
+    Notes
+    -----
+    Table-boundary detection: tables are separated by rows whose first cell equals
+    "Back to TOC" (case-insensitive).  Each table then has:
+      Row +1 : question text
+      Row +2 : column headers ("Row %" + scale options, or " " + "%")
+      Rows +3…: data rows (label + values)
+      Final  : "base n = N" row
+
+    For ``type="single"`` the frequencies are stored in *reverse file order* so
+    that the existing slide-builder (which calls ``list(reversed(freqs))``) will
+    display the first file row at the top of the chart.
+    """
+    try:
+        import openpyxl
+    except ImportError:
+        raise ImportError("openpyxl is required.  pip install openpyxl")
+
+    wb = openpyxl.load_workbook(path, data_only=True)
+    ws = wb[sheet_name]
+    all_rows = list(ws.iter_rows(values_only=True))
+
+    # Locate the start of each table ("Back to TOC" sentinel)
+    table_starts = [
+        i for i, row in enumerate(all_rows)
+        if row[0] is not None and str(row[0]).strip().lower() == "back to toc"
+    ]
+
+    results: list[QuestionResult] = []
+
+    for t_start in table_starts:
+        # Row +1 : question text (may span merged cells — col 0 carries it)
+        q_text_row = all_rows[t_start + 1] if t_start + 1 < len(all_rows) else (None,)
+        q_text = str(q_text_row[0]).strip() if q_text_row[0] is not None else ""
+
+        # Match against variable_map keys
+        spec = None
+        for key, s in variable_map.items():
+            if key.lower() in q_text.lower():
+                spec = s
+                break
+        if spec is None:
+            continue
+
+        # Row +2 : column headers
+        col_row = all_rows[t_start + 2] if t_start + 2 < len(all_rows) else ()
+        col_headers = [
+            str(c).strip() if c is not None else ""
+            for c in col_row
+        ]
+        is_wide = col_headers[0].lower() == "row %"
+
+        # Data rows: t_start+3 onward until "base n = ..." or blank section
+        exclude_set = {s.lower() for s in spec.get("exclude_rows", [])}
+        label_map   = spec.get("label_map", {})
+        n           = int(spec.get("n", 1011))
+        q_label     = spec.get("question_label", q_text)
+
+        data_rows: list[tuple] = []
+        for row in all_rows[t_start + 3:]:
+            if all(c is None for c in row):
+                break
+            cell0 = str(row[0]).strip() if row[0] is not None else ""
+            if cell0.lower().startswith("base n"):
+                break
+            if not cell0:
+                break
+            data_rows.append(row)
+
+        if spec["type"] == "grid_rows":
+            row_vars = spec["row_vars"]   # {file_row_label: variable_name}
+            for dr in data_rows:
+                row_label = str(dr[0]).strip() if dr[0] is not None else ""
+                if row_label.lower() in exclude_set:
+                    continue
+                var_name = row_vars.get(row_label)
+                if var_name is None:
+                    continue
+                display_label = label_map.get(row_label, row_label)
+                freqs: list[FrequencyRow] = []
+                # Columns: col_headers[1:] = scale options
+                for i, scale_opt in enumerate(col_headers[1:], start=1):
+                    if not scale_opt or i >= len(dr):
+                        continue
+                    pct = float(dr[i]) if dr[i] is not None else 0.0
+                    cnt = int(round(pct * n / 100))
+                    freqs.append(FrequencyRow(
+                        label=scale_opt, code=scale_opt,
+                        count=cnt, percent=round(pct, 1),
+                    ))
+                if freqs:
+                    results.append(QuestionResult(
+                        variable=var_name,
+                        label=display_label,
+                        type="categorical",
+                        frequencies=freqs,
+                        n_valid=n,
+                    ))
+
+        elif spec["type"] == "single":
+            var_name = spec["variable"]
+            freqs = []
+            for dr in data_rows:
+                row_label = str(dr[0]).strip() if dr[0] is not None else ""
+                if not row_label:
+                    continue
+                if row_label.lower() in exclude_set:
+                    continue
+                display_label = label_map.get(row_label, row_label)
+                pct = float(dr[1]) if len(dr) > 1 and dr[1] is not None else 0.0
+                cnt = int(round(pct * n / 100))
+                freqs.append(FrequencyRow(
+                    label=display_label, code=display_label,
+                    count=cnt, percent=round(pct, 1),
+                ))
+            # Reverse so that list(reversed(freqs)) in slide_builder puts
+            # the first file row at the TOP of the chart.
+            freqs = list(reversed(freqs))
+            if freqs:
+                results.append(QuestionResult(
+                    variable=var_name,
+                    label=q_label,
+                    type="categorical",
+                    frequencies=freqs,
+                    n_valid=n,
+                ))
+
+    return results

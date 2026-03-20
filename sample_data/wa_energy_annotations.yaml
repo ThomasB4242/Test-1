@@ -1,0 +1,262 @@
+# WA Energy Survey — Report Annotations
+# ----------------------------------------
+# Source data: Example - toplines.xlsx / Example - supp tables.xlsx
+# n=1,011 WA adult residents
+# Demographic sidebars drawn from supplementary tables.
+# Coloured lines: {text: "...", color: teal} = higher than total
+#                 {text: "...", color: coral} = lower than total
+
+slides:
+
+  # ── Cover ───────────────────────────────────────────────────────────────────
+  - type: cover
+    title: "WA Energy Survey"
+    subtitle: "Community Attitudes: Energy & Renewables"
+    base: "n=1,011 WA adult residents"
+
+  # ── Section ─────────────────────────────────────────────────────────────────
+  - type: section
+    title: "Perceptions of Energy Types"
+
+  # ── Commentary ──────────────────────────────────────────────────────────────
+  - type: commentary
+    heading: "Key findings — energy perceptions & renewables"
+    bold_intro: >
+      WA residents broadly view coal and oil as bad for the climate, while attitudes
+      to gas are more mixed. Cost of living dominates energy concerns, though climate
+      is the top priority for younger and more progressive cohorts. There is a strong
+      majority in favour of a renewable energy target, with optimism about economic
+      benefits tempered by scepticism on power prices.
+    bullets:
+      - "Coal (61%) and oil (59%) are rated as bad for the climate by majorities; gas is more divisive (43% total bad)."
+      - "Rising power prices is the #1 energy concern (36%), well ahead of climate change (19%)."
+      - "Majorities believe renewables would bring good jobs (73%), new industries (71%) and better reliability (67%)."
+      - "62% support a WA renewable energy target; only 15% oppose. Unsure remains high at 23%."
+      - "Solar consideration is modest: just 32% of non-solar households are considering installing solar."
+    base: "Base: all respondents (n=1,011)"
+
+  # ── Grid Q1: Climate impact of energy types ─────────────────────────────────
+  - type: grid
+    variables:
+      - energy_climate_coal
+      - energy_climate_oil
+      - energy_climate_gas
+    heading: "Climate impact of energy types"
+    question: "How bad do you think using each of the following energy types is for the climate? (%)"
+    scale_order:
+      - "Very bad"
+      - "Moderately bad"
+      - "Not that bad"
+      - "Not at all bad"
+      - "Unsure"
+    top_box:
+      label: "Total bad"
+      values:
+        - "Very bad"
+        - "Moderately bad"
+    row_labels:
+      - "Coal"
+      - "Oil, diesel & petrol"
+      - "Gas"
+    annotation_font: 12
+    annotations:
+      - "Coal & oil seen as bad for the climate"
+      - "by clear majorities."
+      - ""
+      - "Gas is more divisive — splits by age:"
+      - {text: "  ↑ Under 30 — 54% rate gas as bad", color: teal}
+      - {text: "  ↓ 60+ — 38% rate gas as bad", color: coral}
+      - ""
+      - "And strongly by political vote:"
+      - {text: "  ↑ Greens — 57% / WA Labor — 49%", color: teal}
+      - {text: "  ↓ Lib/Nat — 35% / One Nation — 29%", color: coral}
+    base: "Base: all respondents (n=1,011)"
+
+  # ── Chart Q2: Main energy concern ───────────────────────────────────────────
+  - type: chart
+    variable: energy_concern
+    heading: "Main concern about WA's energy future"
+    question: "Which of the following concerns you most when thinking about WA's energy future? (%)"
+    chart_type: bar
+    annotation_font: 12
+    annotations:
+      - "Rising power prices is the dominant"
+      - "concern across all groups."
+      - ""
+      - "Climate concern is highest among"
+      - "younger and more progressive residents:"
+      - {text: "  ↑ Under 30 — 24% cite climate", color: teal}
+      - {text: "  ↓ 60+ — 16% cite climate", color: coral}
+      - {text: "  ↑ Women — 23% climate (vs 15% men)", color: teal}
+      - {text: "  ↑ Greens — 30% climate", color: teal}
+      - ""
+      - "Power prices skew older & conservative:"
+      - {text: "  ↑ 60+ — 42% cite rising prices", color: coral}
+      - {text: "  ↑ One Nation — 48% rising prices", color: coral}
+    base: "Base: all respondents (n=1,011)"
+
+  # ── Section ─────────────────────────────────────────────────────────────────
+  - type: section
+    title: "Renewable Energy Attitudes"
+
+  # ── Grid Q3a: RE outcomes — top 7 ───────────────────────────────────────────
+  - type: grid
+    variables:
+      - re_outcome_jobs
+      - re_outcome_industries
+      - re_outcome_infrastructure
+      - re_outcome_pollution
+      - re_outcome_reliability
+      - re_outcome_living_std
+      - re_outcome_economy
+    heading: "Likely outcomes of more renewable energy (1 of 2)"
+    question: "How likely do you think these outcomes would be if WA used more renewable energy? (%)"
+    scale_order:
+      - "Very likely"
+      - "Somewhat likely"
+      - "Unsure"
+      - "Somewhat unlikely"
+      - "Very unlikely"
+    top_box:
+      label: "Total likely"
+      values:
+        - "Very likely"
+        - "Somewhat likely"
+    row_labels:
+      - "Providing good jobs"
+      - "Creating new industries"
+      - "Well-planned energy infrastructure"
+      - "Lowering pollution & addressing climate"
+      - "Better energy system reliability"
+      - "Maintaining living standards"
+      - "Delivering a strong economy"
+    annotation_font: 11
+    annotations:
+      - "Optimism is broad — driven mainly by"
+      - "age and political alignment."
+      - ""
+      - "Strongest optimism among 30–44 year olds:"
+      - {text: "  ↑ 30–44yo — 73–80% total likely", color: teal}
+      - {text: "  ↓ 60+ — 57–68% total likely", color: coral}
+      - ""
+      - "Solar/battery owners more optimistic:"
+      - {text: "  ↑ Solar owners — ~75–79%", color: teal}
+      - {text: "  ↓ No solar — ~56–66%", color: coral}
+    base: "Base: all respondents (n=1,011)"
+
+  # ── Grid Q3b: RE outcomes — bottom 6 ────────────────────────────────────────
+  - type: grid
+    variables:
+      - re_outcome_businesses
+      - re_outcome_public_svcs
+      - re_outcome_climate_fund
+      - re_outcome_power_prices
+      - re_outcome_cost_living
+      - re_outcome_debt
+    heading: "Likely outcomes of more renewable energy (2 of 2)"
+    question: "How likely do you think these outcomes would be if WA used more renewable energy? (%)"
+    scale_order:
+      - "Very likely"
+      - "Somewhat likely"
+      - "Unsure"
+      - "Somewhat unlikely"
+      - "Very unlikely"
+    top_box:
+      label: "Total likely"
+      values:
+        - "Very likely"
+        - "Somewhat likely"
+    row_labels:
+      - "More certainty for businesses"
+      - "Funding public services"
+      - "Contributing to a climate resilience fund"
+      - "Lower power prices"
+      - "Reducing the cost of living"
+      - "Paying off government debt"
+    annotation_font: 11
+    annotations:
+      - "Power prices & cost of living attract"
+      - "greatest scepticism — but still majority"
+      - "optimism (57–59% total likely)."
+      - ""
+      - "Political vote is the strongest divider:"
+      - {text: "  ↑ WA Labor — 65–67% likely", color: teal}
+      - {text: "  ↓ One Nation — 29–40% likely", color: coral}
+      - ""
+      - "Education gradient:"
+      - {text: "  ↑ University — 62–68% likely", color: teal}
+      - {text: "  ↓ Secondary/lower — 48–52% likely", color: coral}
+    base: "Base: all respondents (n=1,011)"
+
+  # ── Chart Q5: Support for RE target ─────────────────────────────────────────
+  - type: chart
+    variable: re_target_support
+    heading: "Support for a WA renewable energy target"
+    question: "How strongly do you support or oppose WA adopting a renewable energy target? (%)"
+    chart_type: bar
+    top_box:
+      label: "Support"
+      values:
+        - "Strongly support"
+        - "Somewhat support"
+    bottom_box:
+      label: "Oppose"
+      values:
+        - "Somewhat oppose"
+        - "Strongly oppose"
+    annotation_font: 12
+    annotations:
+      - "62% support a renewable energy target;"
+      - "only 15% oppose."
+      - ""
+      - "Strongest support among:"
+      - {text: "  ↑ WA Labor voters — 78%", color: teal}
+      - {text: "  ↑ Inner city Perth — 70%", color: teal}
+      - {text: "  ↑ 30–44 year olds — 66%", color: teal}
+      - {text: "  ↑ Solar owners — 70%", color: teal}
+      - ""
+      - "Most opposition from:"
+      - {text: "  ↓ One Nation — 35% support, 46% oppose", color: coral}
+      - {text: "  ↓ 60+ — 56% support, 25% oppose", color: coral}
+    base: "Base: all respondents (n=1,011)"
+
+  # ── Chart Q4: Rooftop solar consideration ───────────────────────────────────
+  - type: chart
+    variable: solar_consider
+    heading: "Considering installing rooftop solar"
+    question: "Are you considering installing rooftop solar? (%)"
+    chart_type: pie
+    annotation_font: 12
+    annotations:
+      - "Only 1 in 3 non-solar households"
+      - "are considering solar — 26% unsure."
+      - ""
+      - "Most likely to consider:"
+      - {text: "  ↑ Mortgage holders — 48%", color: teal}
+      - {text: "  ↑ 30–44 year olds — 42%", color: teal}
+      - {text: "  ↑ Income >$120k — 42%", color: teal}
+      - ""
+      - "Least likely:"
+      - {text: "  ↓ 60+ — 24% (61% say no)", color: coral}
+      - {text: "  ↓ Income <$60k — 23%", color: coral}
+      - {text: "  ↓ Retired — 21%", color: coral}
+    base: "Base: respondents without solar (n=473)"
+
+  # ── Chart Q6: Reasons for supporting a target ───────────────────────────────
+  - type: chart
+    variable: re_target_reasons
+    heading: "Main reason for supporting a renewable energy target"
+    question: "What is the main reason for supporting a target? (%, among supporters)"
+    chart_type: bar
+    annotation_font: 12
+    annotations:
+      - "Practical momentum and values-based"
+      - "support are the dominant themes."
+      - ""
+      - "Top reasons:"
+      - "1. Clear goals & direction — 25%"
+      - "2. 'Right thing to do' — 23%"
+      - "3. Better environment & health — 16%"
+      - "4. Climate & emissions — 14%"
+      - "5. Reduce fossil fuel reliance — 11%"
+    base: "Base: those who support a target (n=626)"
