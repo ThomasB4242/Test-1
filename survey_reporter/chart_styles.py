@@ -10,6 +10,8 @@ matplotlib.use("Agg")
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch
 
 from . import theme
 
@@ -28,7 +30,7 @@ GRID_AXIS_LEFT   = 0.40    # grid / stacked — longer statement labels
 AXIS_RIGHT       = 0.90
 AXIS_TOP         = 0.95    # leave a sliver at top
 AXIS_BOTTOM      = 0.03    # simple bar — no x-axis labels
-GRID_AXIS_BOTTOM = 0.12    # grid — room for x-axis tick labels
+GRID_AXIS_BOTTOM = 0.05    # grid — no x-axis labels needed (was 0.12)
 
 
 def _hex_to_rgb(hex_color: str):
@@ -37,12 +39,61 @@ def _hex_to_rgb(hex_color: str):
 
 
 def _text_color_for_bg(hex_bg: str) -> str:
-    """White on dark backgrounds, gray on light ones."""
-    return "white" if hex_bg in {theme.TEAL_DARK, theme.CORAL} else theme.GRAY_DARK
+    """White on dark/medium backgrounds, gray on light ones."""
+    return "white" if hex_bg in {theme.TEAL_DARK, theme.TEAL_MID, theme.CORAL} else theme.GRAY_DARK
 
 
 def _wrap_label(text: str, max_chars: int = 32) -> str:
     return "\n".join(textwrap.wrap(text, max_chars))
+
+
+# ---------------------------------------------------------------------------
+# Rounded-right-corner bar primitive
+# ---------------------------------------------------------------------------
+
+def _rounded_right_bar(ax, x0: float, x1: float, y_center: float,
+                        bar_h: float, r_x: float, r_y: float,
+                        hex_color: str, zorder: int = 3) -> None:
+    """Draw a horizontal bar with rounded right corners, sharp left corners."""
+    if x1 <= x0:
+        return
+    r_x = min(r_x, (x1 - x0) * 0.48)
+    r_y = min(r_y, bar_h * 0.48)
+    y0 = y_center - bar_h / 2
+    y1 = y_center + bar_h / 2
+    verts = [
+        (x0,       y0),
+        (x1 - r_x, y0),
+        (x1,       y0),           # ctrl – bottom-right corner
+        (x1,       y0 + r_y),
+        (x1,       y1 - r_y),
+        (x1,       y1),           # ctrl – top-right corner
+        (x1 - r_x, y1),
+        (x0,       y1),
+        (x0,       y0),
+    ]
+    codes = [
+        Path.MOVETO,
+        Path.LINETO,
+        Path.CURVE3, Path.CURVE3,
+        Path.LINETO,
+        Path.CURVE3, Path.CURVE3,
+        Path.LINETO,
+        Path.CLOSEPOLY,
+    ]
+    fc = _hex_to_rgb(hex_color)
+    ax.add_patch(PathPatch(Path(verts, codes),
+                           facecolor=fc, edgecolor="none", zorder=zorder))
+
+
+def _bar_radii(fig_h: float, n_rows: int,
+               axis_left: float, axis_bottom: float) -> tuple[float, float]:
+    """Return (r_x, r_y) in data coordinates for visually circular corners."""
+    ax_w_in = (AXIS_RIGHT - axis_left) * CHART_FIG_W
+    ax_h_in = (AXIS_TOP - axis_bottom) * fig_h
+    r_y = 0.55 * 0.38                                  # 38% of bar height in y-data-units
+    r_x = (r_y / (max(n_rows, 1) / ax_h_in)) * (100.0 / ax_w_in)
+    return r_x, r_y
 
 
 # ---------------------------------------------------------------------------
@@ -56,10 +107,7 @@ def render_simple_bar(
     bar_colors: List[str] | None = None,
     fig_h: float | None = None,
 ) -> io.BytesIO:
-    """Render a simple horizontal bar chart.
-
-    Labels displayed top-to-bottom in the order supplied.
-    """
+    """Render a simple horizontal bar chart."""
     if bar_colors is None:
         bar_colors = [color or theme.BAR_COLOR] * len(labels)
     if fig_h is None:
@@ -75,18 +123,25 @@ def render_simple_bar(
     )
 
     max_val = max(values) if values else 1
-    ax.set_xlim(0, max_val * 1.12 + 3)
+    xlim_max = max_val * 1.12 + 3
+    ax.set_xlim(0, xlim_max)
+
+    # Rounded-corner radii scaled to give visually circular corners
+    ax_w_in = (AXIS_RIGHT - AXIS_LEFT) * CHART_FIG_W
+    ax_h_in = (AXIS_TOP - AXIS_BOTTOM) * fig_h
+    r_y = 0.60 * 0.38
+    r_x = (r_y / (max(n, 1) / ax_h_in)) * (xlim_max / ax_w_in)
 
     for i, (label, val, clr) in enumerate(zip(labels, values, bar_colors)):
-        ax.barh(i, val, height=0.60, color=_hex_to_rgb(clr), linewidth=0)
+        _rounded_right_bar(ax, 0, val, i, 0.60, r_x, r_y, clr)
         if val >= 8:
             ax.text(val / 2, i, f"{int(round(val))}",
                     ha="center", va="center",
-                    fontsize=10, color="white", fontweight="bold")
+                    fontsize=10, color="white", fontweight="bold", zorder=4)
         else:
             ax.text(val + 0.8, i, f"{int(round(val))}",
                     ha="left", va="center",
-                    fontsize=10, color=theme.GRAY_DARK, fontweight="bold")
+                    fontsize=10, color=theme.GRAY_DARK, fontweight="bold", zorder=4)
 
     ax.set_yticks(list(range(n)))
     ax.set_yticklabels(labels, fontsize=10, color=theme.GRAY_DARK)
@@ -114,17 +169,22 @@ def render_stacked_bar(
     fig_h: float | None = None,
     axis_left: float | None = None,
     axis_bottom: float | None = None,
+    total_percents: List[float] | None = None,
+    circle_color: str | None = None,
 ) -> io.BytesIO:
     """Render a stacked 0–100 horizontal bar chart for grid questions.
 
     Parameters
     ----------
-    row_labels   : One label per row, index 0 at the TOP.
-    segments     : List of ``{label, values}`` dicts (one per scale option).
-    colors       : Hex colour per segment.
-    fig_h        : Figure height (inches). Defaults to CHART_FIG_H.
-    axis_left    : Left subplot margin fraction. Defaults to GRID_AXIS_LEFT.
-    axis_bottom  : Bottom subplot margin fraction. Defaults to GRID_AXIS_BOTTOM.
+    row_labels      : One label per row, index 0 at the TOP.
+    segments        : List of ``{label, values}`` dicts (one per scale option).
+    colors          : Hex colour per segment.
+    fig_h           : Figure height (inches). Defaults to CHART_FIG_H.
+    axis_left       : Left subplot margin fraction. Defaults to GRID_AXIS_LEFT.
+    axis_bottom     : Bottom subplot margin fraction. Defaults to GRID_AXIS_BOTTOM.
+    total_percents  : Per-row top-box total (0–100). When supplied a filled
+                      circle is drawn ON the chart at each total position.
+    circle_color    : Hex colour for the total circles. Defaults to TEAL_MID.
     """
     if colors is None:
         colors = theme.LIKERT_COLORS
@@ -147,38 +207,36 @@ def render_stacked_bar(
         top=AXIS_TOP,   bottom=axis_bottom,
     )
 
-    lefts = [0.0] * n_rows
-    y_positions = list(range(n_rows))
+    # Rounded corner radii for visually circular corners
+    r_x, r_y = _bar_radii(fig_h, n_rows, axis_left, axis_bottom)
 
+    # Draw stacked segments
+    lefts = [0.0] * n_rows
     for i, seg in enumerate(segments):
         clr  = colors[i % len(colors)]
         vals = seg["values"]
-        bars = ax.barh(
-            y_positions, vals, left=lefts,
-            height=0.55, color=_hex_to_rgb(clr), linewidth=0,
-            zorder=3,
-        )
         txt_clr = _text_color_for_bg(clr)
-        for bar, val in zip(bars, vals):
+        for row_i, val in enumerate(vals):
+            if val <= 0:
+                continue
+            _rounded_right_bar(ax,
+                                lefts[row_i], lefts[row_i] + val,
+                                row_i, 0.55, r_x, r_y, clr)
             if val >= 7:
-                cx = bar.get_x() + bar.get_width() / 2
-                cy = bar.get_y() + bar.get_height() / 2
-                ax.text(cx, cy, f"{int(round(val))}",
+                cx = lefts[row_i] + val / 2
+                ax.text(cx, row_i, f"{int(round(val))}",
                         ha="center", va="center",
                         fontsize=9, color=txt_clr, fontweight="bold", zorder=4)
         lefts = [l + v for l, v in zip(lefts, vals)]
 
-    # ── x-axis: grid lines at 0/25/50/75/100, labels, no tick marks ──────────
+    # ── x-axis: grid lines only, NO tick labels ───────────────────────────────
     ax.set_xlim(0, 100)
     ax.set_xticks([0, 25, 50, 75, 100])
-    ax.set_xticklabels(["0", "25", "50", "75", "100"])
-    ax.tick_params(axis="x", length=0, labelsize=7,
-                   labelcolor=theme.GRAY_DARK, pad=3)
-    ax.xaxis.grid(True, linestyle="-", linewidth=0.6,
-                  color="#E0E0E0", zorder=0)
+    ax.set_xticklabels([])                          # no numbers
+    ax.tick_params(axis="x", length=0)
+    ax.xaxis.grid(True, linestyle="-", linewidth=0.6, color="#E0E0E0", zorder=0)
     ax.set_axisbelow(True)
 
-    # Bold bottom spine only
     for name, spine in ax.spines.items():
         if name == "bottom":
             spine.set_visible(True)
@@ -187,12 +245,33 @@ def render_stacked_bar(
         else:
             spine.set_visible(False)
 
-    ax.set_yticks(y_positions)
+    # ── y-axis: bold labels ───────────────────────────────────────────────────
+    ax.set_yticks(list(range(n_rows)))
     ax.set_yticklabels(wrapped_labels, fontsize=label_fs, color=theme.GRAY_DARK,
-                       linespacing=1.1)
+                       linespacing=1.1, fontweight="bold")
     ax.set_ylim(-0.55, n_rows - 0.45)
     ax.invert_yaxis()
-    ax.tick_params(axis="y", length=0)  # no y tick marks either
+    ax.tick_params(axis="y", length=0)
+
+    # ── In-chart total circles ────────────────────────────────────────────────
+    if total_percents:
+        # Diameter in matplotlib points ≈ bar height in inches × 72 pt/in
+        ax_h_in  = (AXIS_TOP - axis_bottom) * fig_h
+        bar_h_in = 0.55 * ax_h_in / max(n_rows, 1)
+        c_diam   = bar_h_in * 72          # points
+        c_fs     = max(6, int(c_diam * 0.38))
+        cclr     = _hex_to_rgb(circle_color or theme.TEAL_MID)
+        for row_i, tp in enumerate(total_percents):
+            if tp <= 0:
+                continue
+            ax.plot(tp, row_i, "o",
+                    markersize=c_diam,
+                    color=cclr, markeredgecolor="none",
+                    zorder=5, clip_on=False)
+            ax.text(tp, row_i, str(int(round(tp))),
+                    ha="center", va="center",
+                    fontsize=c_fs, color="white", fontweight="bold",
+                    zorder=6, clip_on=False)
 
     buf = io.BytesIO()
     plt.savefig(buf, format="png", dpi=CHART_DPI)
@@ -211,14 +290,7 @@ def legend_image(
     fig_w: float = CHART_FIG_W,
     circle_indices: set | None = None,
 ) -> io.BytesIO:
-    """Render a small horizontal legend strip.
-
-    Parameters
-    ----------
-    circle_indices : set of int
-        Indices of entries that should use a circle marker instead of a
-        colour rectangle (e.g. {0} for the 'Total agree' entry).
-    """
+    """Render a small horizontal legend strip."""
     if colors is None:
         colors = theme.LIKERT_COLORS
     if circle_indices is None:

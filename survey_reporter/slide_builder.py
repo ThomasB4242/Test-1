@@ -535,34 +535,26 @@ def add_grid_slide(
         else:
             seg_colors.append(theme.GRAY_MID)
 
-    # ── Render chart ─────────────────────────────────────────────────────────
+    # ── Render chart (circles are drawn inside the matplotlib figure) ─────────
+    top_vals_list = top_box_spec.get("values", []) if top_box_spec else []
+    total_percents: list[float] = []
+    for res in results:
+        freq_by_label = {f.label: f.percent for f in res.frequencies}
+        tp = float(_sum_box(freq_by_label, top_vals_list)) if top_vals_list else 0.0
+        total_percents.append(tp)
+
     chart_buf = chart_styles.render_stacked_bar(
         row_labels, segments, colors=seg_colors,
         fig_h=ch,
         axis_left=chart_styles.GRID_AXIS_LEFT,
         axis_bottom=chart_styles.GRID_AXIS_BOTTOM,
+        total_percents=total_percents if top_vals_list else None,
+        circle_color=theme.TEAL_MID,
     )
     chart_buf.seek(0)
     slide.shapes.add_picture(chart_buf,
                              Inches(cl), Inches(ct),
                              width=Inches(cw), height=Inches(ch))
-
-    # ── Per-row circle badges at actual pct% along bar ────────────────────────
-    r             = _grid_circle_r(n_rows, ch)
-    top_vals_list = top_box_spec.get("values", []) if top_box_spec else []
-
-    for row_i, result in enumerate(results):
-        if not top_vals_list:
-            continue
-        freq_by_label = {f.label: f.percent for f in result.frequencies}
-        pct = _sum_box(freq_by_label, top_vals_list)
-        if pct <= 0:
-            continue
-        cx = _circle_cx_for_pct(pct, cl, cw, axis_left=chart_styles.GRID_AXIS_LEFT)
-        cy = _bar_circle_center_y(row_i, n_rows, ct, ch,
-                                  axis_bottom=chart_styles.GRID_AXIS_BOTTOM)
-        _draw_circle_badge(slide, cx, cy, r, theme.TEAL_MID, pct,
-                           show_label=False)
 
     # ── Legend (circle for total, rectangles for segments) ───────────────────
     circle_label  = top_box_spec.get("label", "Total") if top_box_spec else None
