@@ -272,16 +272,10 @@ def _add_heading_rule(slide):
 
 
 def _add_footer(slide, base_note: str, page_num: int | None):
-    # Footer sits above the master logo (logo is at y≈6.85", h≈0.40")
-    _add_textbox(slide, theme.FOOTER_BOX, base_note,
-                 font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK, italic=True)
-    if page_num is not None:
-        pb = theme.PAGE_NUM_BOX
-        _add_oval(slide, pb, theme.TEAL_DARK)
-        l, t, w, h = pb
-        _add_textbox(slide, (l, t + h * 0.12, w, h * 0.76), str(page_num),
-                     font_size=10, color=theme.WHITE,
-                     bold=True, align=PP_ALIGN.CENTER)
+    # Footer text only — slide numbering is handled by the template master.
+    if base_note:
+        _add_textbox(slide, theme.FOOTER_BOX, base_note,
+                     font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK, italic=True)
 
 
 def _add_logo(slide, logo_path: str | None):
@@ -439,6 +433,7 @@ _GRID_ANNOT_W      = 12.93 - _GRID_ANNOT_L  # ~3.43"
 # Template layout names
 _LAYOUT_SINGLE_BAR = "title slide"       # Layout 0  — diagonal right background
 _LAYOUT_GRID       = "3_title slide"     # Layout 11 — full-width mint horizontal strip
+_LAYOUT_TABLE      = "1_title slide"     # Layout 10 — white solid background, same placeholders
 
 
 # ---------------------------------------------------------------------------
@@ -579,15 +574,6 @@ def add_chart_slide(
     # Base note: use template placeholder idx=22 if available, else manual footer
     if not _fill_placeholder(slide, 22, base_note):
         _add_footer(slide, base_note, page_num)
-    else:
-        # Still add page number oval separately
-        if page_num is not None:
-            pb = theme.PAGE_NUM_BOX
-            _add_oval(slide, pb, theme.TEAL_DARK)
-            l, t, w, h = pb
-            _add_textbox(slide, (l, t + h * 0.12, w, h * 0.76), str(page_num),
-                         font_size=10, color=theme.WHITE,
-                         bold=True, align=PP_ALIGN.CENTER)
 
 
 # ---------------------------------------------------------------------------
@@ -729,14 +715,6 @@ def add_grid_slide(
     # Base: layout '3_Title Slide' uses idx=22 for footer (at y=7.08")
     if not _fill_placeholder(slide, 22, base_note):
         _add_footer(slide, base_note, page_num)
-    else:
-        if page_num is not None:
-            pb = theme.PAGE_NUM_BOX
-            _add_oval(slide, pb, theme.TEAL_DARK)
-            l, t, w, h = pb
-            _add_textbox(slide, (l, t + h * 0.12, w, h * 0.76), str(page_num),
-                         font_size=10, color=theme.WHITE,
-                         bold=True, align=PP_ALIGN.CENTER)
 
 
 # ---------------------------------------------------------------------------
@@ -752,25 +730,30 @@ def add_table_slide(
 ):
     """Two-column table slide: full response label (bold title + normal explanation) | %.
 
-    Uses a Blank layout — no sidebar.  Each label is split on ': ' so the
-    short title is bold and the explanation text is regular weight.
-    Rows are shown in descending % order (reversed from stored order).
+    Uses the '1_Title Slide' layout (white solid background, same title /
+    question / footer placeholders as chart slides — no diagonal teal panel).
+    Each label is split on ': ' so the short title is bold and the explanation
+    is regular weight.  Rows are shown in descending % order.
     """
     from lxml import etree
 
-    slide = _blank_slide(prs)
+    # '1_Title Slide' (layout 10): white bg, same ph positions as Title Slide
+    slide = _layout_slide(prs, _LAYOUT_TABLE)
     _add_logo(slide, logo_path)
 
     heading   = spec.get("heading", result.label if result else "")
     question  = spec.get("question", "")
     base_note = spec.get("base", "")
 
-    _add_textbox(slide, theme.HEADING_BOX, heading,
-                 font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
-    _add_heading_rule(slide)
+    # Fill template placeholders — identical pattern to add_chart_slide
+    if not _fill_placeholder(slide, 0, heading):
+        _add_textbox(slide, theme.HEADING_BOX, heading,
+                     font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
+        _add_heading_rule(slide)
     if question:
-        _add_textbox(slide, theme.QUESTION_BOX, question,
-                     font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
+        if not _fill_placeholder(slide, 21, question):
+            _add_textbox(slide, theme.QUESTION_BOX, question,
+                         font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
 
     _NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
 
@@ -870,7 +853,8 @@ def add_table_slide(
             _label_cell(tbl.cell(i + 1, 0), freq.label, fg_lbl, bg)
             _pct_cell(tbl.cell(i + 1, 1), freq.percent, fg_pct, bg)
 
-    _add_footer(slide, base_note, page_num)
+    if not _fill_placeholder(slide, 22, base_note):
+        _add_footer(slide, base_note, page_num)
 
 
 # ---------------------------------------------------------------------------
