@@ -91,7 +91,7 @@ def _bar_radii(fig_h: float, n_rows: int,
     """Return (r_x, r_y) in data coordinates for visually circular corners."""
     ax_w_in = (AXIS_RIGHT - axis_left) * CHART_FIG_W
     ax_h_in = (AXIS_TOP - axis_bottom) * fig_h
-    r_y = 0.55 * 0.38                                  # 38% of bar height in y-data-units
+    r_y = 0.55 * 0.22                                  # 22% of bar height in y-data-units
     r_x = (r_y / (max(n_rows, 1) / ax_h_in)) * (100.0 / ax_w_in)
     return r_x, r_y
 
@@ -210,7 +210,14 @@ def render_stacked_bar(
     # Rounded corner radii for visually circular corners
     r_x, r_y = _bar_radii(fig_h, n_rows, axis_left, axis_bottom)
 
-    # Draw stacked segments
+    # Pre-compute which segment is the last (rightmost) non-zero for each row
+    last_seg_idx = [-1] * n_rows
+    for i, seg in enumerate(segments):
+        for row_i, val in enumerate(seg["values"]):
+            if val > 0:
+                last_seg_idx[row_i] = i
+
+    # Draw stacked segments — only the last non-zero segment gets rounded right corners
     lefts = [0.0] * n_rows
     for i, seg in enumerate(segments):
         clr  = colors[i % len(colors)]
@@ -219,9 +226,13 @@ def render_stacked_bar(
         for row_i, val in enumerate(vals):
             if val <= 0:
                 continue
+            is_last = (i == last_seg_idx[row_i])
             _rounded_right_bar(ax,
                                 lefts[row_i], lefts[row_i] + val,
-                                row_i, 0.55, r_x, r_y, clr)
+                                row_i, 0.55,
+                                r_x if is_last else 0.0,
+                                r_y if is_last else 0.0,
+                                clr)
             if val >= 7:
                 cx = lefts[row_i] + val / 2
                 ax.text(cx, row_i, f"{int(round(val))}",
@@ -260,17 +271,22 @@ def render_stacked_bar(
         bar_h_in = 0.55 * ax_h_in / max(n_rows, 1)
         c_diam   = bar_h_in * 72          # points
         c_fs     = max(6, int(c_diam * 0.38))
-        cclr     = _hex_to_rgb(circle_color or theme.TEAL_MID)
+        border_w = max(1.5, c_diam * 0.12)   # border thickness scales with size
+        cclr_hex = circle_color or theme.TEAL_MID
+        cclr     = _hex_to_rgb(cclr_hex)
         for row_i, tp in enumerate(total_percents):
             if tp <= 0:
                 continue
+            # White fill with thick teal border
             ax.plot(tp, row_i, "o",
                     markersize=c_diam,
-                    color=cclr, markeredgecolor="none",
+                    color="white",
+                    markeredgecolor=cclr,
+                    markeredgewidth=border_w,
                     zorder=5, clip_on=False)
             ax.text(tp, row_i, str(int(round(tp))),
                     ha="center", va="center",
-                    fontsize=c_fs, color="white", fontweight="bold",
+                    fontsize=c_fs, color=cclr, fontweight="bold",
                     zorder=6, clip_on=False)
 
     buf = io.BytesIO()

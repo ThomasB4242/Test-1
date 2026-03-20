@@ -169,6 +169,57 @@ def _blank_slide(prs: Presentation):
     return prs.slides.add_slide(prs.slide_layouts[min(6, len(prs.slide_layouts) - 1)])
 
 
+def _find_layout(prs: Presentation, *names: str):
+    """Return the first slide layout whose name matches one of *names* (case-insensitive).
+    Falls back to the Blank layout if none match."""
+    lower = {n.lower() for n in names}
+    for layout in prs.slide_layouts:
+        if layout.name.lower() in lower:
+            return layout
+    return _blank_slide.__wrapped__(prs) if hasattr(_blank_slide, '__wrapped__') else None
+
+
+def _layout_slide(prs: Presentation, *layout_names: str):
+    """Add a slide using the named layout (falls back to Blank)."""
+    lower = {n.lower() for n in layout_names}
+    for layout in prs.slide_layouts:
+        if layout.name.lower() in lower:
+            return prs.slides.add_slide(layout)
+    return _blank_slide(prs)
+
+
+def _fill_placeholder(slide, ph_idx: int, text: str,
+                      bold: bool | None = None,
+                      italic: bool | None = None,
+                      font_size: int | None = None,
+                      color: str | None = None):
+    """Write *text* into the slide placeholder with the given idx.
+
+    Returns the placeholder shape, or None if not found.
+    Explicit formatting only overrides fields that are supplied.
+    """
+    for ph in slide.placeholders:
+        if ph.placeholder_format.idx == ph_idx:
+            tf = ph.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            for run in p.runs:
+                run.text = ""
+            run = p.add_run()
+            run.text = text
+            run.font.name = theme.FONT_FACE
+            if font_size is not None:
+                run.font.size = Pt(font_size)
+            if color is not None:
+                run.font.color.rgb = _rgb(color)
+            if bold is not None:
+                run.font.bold = bold
+            if italic is not None:
+                run.font.italic = italic
+            return ph
+    return None
+
+
 def _load_template(template_path: str) -> Presentation:
     """Load a .pptx/.potm/.potx file as a base template with no slides."""
     p = template_path.lower()
@@ -338,19 +389,23 @@ def add_commentary_slide(prs: Presentation, spec: dict, page_num: int | None = N
 
 
 # ---------------------------------------------------------------------------
-# Layout constants
+# Layout constants — matched to the Blank.potm template positions
 # ---------------------------------------------------------------------------
 
-_CHART_L  = theme.CHART_BOX[0]   # 0.34"
-_CHART_W  = theme.CHART_BOX[2]   # 7.33"
-_CHART_T  = 1.60
-_ANNOT_L  = 8.13
-_ANNOT_W  = 12.93 - _ANNOT_L     # ~4.80"
+_CHART_L  = 0.34    # chart image left edge
+_CHART_W  = 7.23    # single-bar chart image width
+_CHART_T  = 1.87    # chart image top (below title + question)
+_ANNOT_L  = 8.07    # annotation text left (single-bar layout)
+_ANNOT_W  = 12.93 - _ANNOT_L  # ~4.86"
 
-# Grid uses a narrower chart so circles stay within the slide footprint
-_GRID_CHART_W  = 6.67
-_GRID_ANNOT_L  = 7.73
-_GRID_ANNOT_W  = 12.93 - _GRID_ANNOT_L  # ~5.20"
+# Grid layout — wider chart, annotations pushed further right
+_GRID_CHART_W  = 6.67   # grid stacked-bar image width
+_GRID_ANNOT_L  = 8.70   # grid annotation left (matches template placeholder x)
+_GRID_ANNOT_W  = 12.93 - _GRID_ANNOT_L  # ~4.23"
+
+# Template layout names
+_LAYOUT_SINGLE_BAR = "title slide"       # Layout 1  — diagonal right background
+_LAYOUT_GRID       = "1_two content"     # Layout 9  — wide chart background
 
 
 # ---------------------------------------------------------------------------
@@ -364,7 +419,8 @@ def add_chart_slide(
     page_num: int | None = None,
     logo_path: str | None = None,
 ):
-    slide = _blank_slide(prs)
+    # Use the 'Title Slide' layout — provides the diagonal-right background design
+    slide = _layout_slide(prs, _LAYOUT_SINGLE_BAR)
     _add_logo(slide, logo_path)
 
     heading         = spec.get("heading", result.label if result else "")
@@ -375,12 +431,20 @@ def add_chart_slide(
     top_box_spec    = spec.get("top_box")
     bottom_box_spec = spec.get("bottom_box")
 
-    _add_textbox(slide, theme.HEADING_BOX, heading,
-                 font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
-    _add_heading_rule(slide)
+    # Fill template placeholders (idx 0=title, 21=question, 22=base/footer)
+    if not _fill_placeholder(slide, 0, heading,
+                             bold=True, color=theme.TEAL_DARK,
+                             font_size=theme.FONT_HEADING):
+        _add_textbox(slide, theme.HEADING_BOX, heading,
+                     font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
+        _add_heading_rule(slide)
+
     if question:
-        _add_textbox(slide, theme.QUESTION_BOX, question,
-                     font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
+        if not _fill_placeholder(slide, 21, question,
+                                 italic=True, color=theme.GRAY_DARK,
+                                 font_size=theme.FONT_QUESTION):
+            _add_textbox(slide, theme.QUESTION_BOX, question,
+                         font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
 
     # ── Sizing ───────────────────────────────────────────────────────────────
     cl, ct, cw = _CHART_L, _CHART_T, _CHART_W
@@ -451,7 +515,20 @@ def add_chart_slide(
             slide, (_ANNOT_L, ct, _ANNOT_W, ch),
             annot_lines, font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
 
-    _add_footer(slide, base_note, page_num)
+    # Base note: use template placeholder idx=22 if available, else manual footer
+    if not _fill_placeholder(slide, 22, base_note,
+                             font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK,
+                             italic=True):
+        _add_footer(slide, base_note, page_num)
+    else:
+        # Still add page number oval separately
+        if page_num is not None:
+            pb = theme.PAGE_NUM_BOX
+            _add_oval(slide, pb, theme.TEAL_DARK)
+            l, t, w, h = pb
+            _add_textbox(slide, (l, t + h * 0.12, w, h * 0.76), str(page_num),
+                         font_size=10, color=theme.WHITE,
+                         bold=True, align=PP_ALIGN.CENTER)
 
 
 # ---------------------------------------------------------------------------
@@ -467,10 +544,11 @@ def add_grid_slide(
 ):
     """Stacked horizontal bar chart — one row per question.
 
-    Circle badges are positioned at the actual pct% mark on each row's bar.
-    Only the number is shown in the circle; the legend explains the colour.
+    Uses the '1_Two Content' template layout for the wide-chart background.
+    Total circles are rendered inside the matplotlib figure.
     """
-    slide = _blank_slide(prs)
+    # Use the '1_Two Content' layout — provides the horizontal-bar background
+    slide = _layout_slide(prs, _LAYOUT_GRID)
     _add_logo(slide, logo_path)
 
     heading             = spec.get("heading", "")
@@ -482,12 +560,19 @@ def add_grid_slide(
     scale_order         = spec.get("scale_order", [])
     row_label_overrides = spec.get("row_labels", [])
 
-    _add_textbox(slide, theme.HEADING_BOX, heading,
-                 font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
-    _add_heading_rule(slide)
+    # Fill template placeholders; fall back to manual textboxes if not found
+    if not _fill_placeholder(slide, 0, heading,
+                             bold=True, color=theme.TEAL_DARK,
+                             font_size=theme.FONT_HEADING):
+        _add_textbox(slide, theme.HEADING_BOX, heading,
+                     font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
+        _add_heading_rule(slide)
     if question:
-        _add_textbox(slide, theme.QUESTION_BOX, question,
-                     font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
+        if not _fill_placeholder(slide, 21, question,
+                                 italic=True, color=theme.GRAY_DARK,
+                                 font_size=theme.FONT_QUESTION):
+            _add_textbox(slide, theme.QUESTION_BOX, question,
+                         font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
 
     if not results:
         _add_footer(slide, base_note, page_num)
@@ -579,11 +664,36 @@ def add_grid_slide(
 
     # ── Annotation panel ──────────────────────────────────────────────────────
     if annot_lines:
-        _add_multiline_textbox(
-            slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
-            annot_lines, font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
+        # Try template placeholder idx=19 first (annotation area on right)
+        ph = _fill_placeholder(slide, 19, annot_lines[0],
+                               font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
+        if ph and len(annot_lines) > 1:
+            tf = ph.text_frame
+            for line in annot_lines[1:]:
+                p2 = tf.add_paragraph()
+                run = p2.add_run()
+                run.text = line
+                run.font.name = theme.FONT_FACE
+                run.font.size = Pt(theme.FONT_BODY)
+                run.font.color.rgb = _rgb(theme.GRAY_DARK)
+        if not ph:
+            _add_multiline_textbox(
+                slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
+                annot_lines, font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
 
-    _add_footer(slide, base_note, page_num)
+    # Base: use template placeholder idx=22 if available, else manual footer
+    if not _fill_placeholder(slide, 22, base_note,
+                             font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK,
+                             italic=True):
+        _add_footer(slide, base_note, page_num)
+    else:
+        if page_num is not None:
+            pb = theme.PAGE_NUM_BOX
+            _add_oval(slide, pb, theme.TEAL_DARK)
+            l, t, w, h = pb
+            _add_textbox(slide, (l, t + h * 0.12, w, h * 0.76), str(page_num),
+                         font_size=10, color=theme.WHITE,
+                         bold=True, align=PP_ALIGN.CENTER)
 
 
 # ---------------------------------------------------------------------------
