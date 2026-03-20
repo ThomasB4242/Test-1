@@ -141,6 +141,28 @@ slides:
       - "across age groups and regions."
     base: "Base: all respondents (n=200)"
 
+  # ── Chart: Support for action (pie chart) ────────────────────────────────
+  - type: chart
+    variable: support_action
+    heading: "Support for action"
+    question: "Do you support taking action on this issue? (%)"
+    chart_type: pie
+    top_box:
+      label: "Support"
+      values:
+        - "Yes"
+    bottom_box:
+      label: "Oppose"
+      values:
+        - "No"
+    annotations:
+      - "Strong majority support for action."
+      - ""
+      - "Support is highest among:"
+      - "– 35–54 year olds (XX%)"
+      - "– Metro residents (XX%)"
+    base: "Base: all respondents (n=200)"
+
   # ── Section divider ───────────────────────────────────────────────────────
   - type: section
     title: "Demographics"

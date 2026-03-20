@@ -376,8 +376,10 @@ def add_commentary_slide(prs: Presentation, spec: dict, page_num: int | None = N
 _CHART_L  = 0.34    # chart image left edge
 _CHART_W  = 5.80    # single-bar chart image width
 _CHART_T  = 1.87    # chart image top (below title + question)
-_ANNOT_L  = 6.30    # annotation text left (single-bar layout)
-_ANNOT_W  = 12.93 - _ANNOT_L  # ~6.63"
+# Annotation: use template's preset right-panel position (ANNOT_BOX) at 14pt
+_ANNOT_L  = theme.ANNOT_BOX[0]   # 8.07"  — centre of the teal diagonal panel
+_ANNOT_W  = theme.ANNOT_BOX[2]   # 4.87"
+_ANNOT_FONT = 14                  # user-requested font size for annotations
 
 # Grid layout — wider chart, annotations pushed further right
 # Strip on layout '3_Title Slide' runs y=2.23" to y=6.58" (h=4.35")
@@ -445,6 +447,14 @@ def add_chart_slide(
                 axis_left=0.05)  # no row label — use full width
             n_bars = 1
             labels_t2b = [""]
+        elif chart_type == "pie":
+            labels_t2b   = [f.label   for f in freqs]
+            percents_t2b = [f.percent for f in freqs]
+            n_bars       = len(labels_t2b)
+            ch           = 4.5   # fixed height for pie
+            pie_colors   = _scale_bar_colors(labels_t2b, top_box_spec, bottom_box_spec)
+            chart_buf    = chart_styles.render_pie_chart(
+                labels_t2b, percents_t2b, colors=pie_colors, fig_h=ch, fig_w=cw)
         else:
             labels_t2b   = list(reversed([f.label   for f in freqs]))
             percents_t2b = list(reversed([f.percent for f in freqs]))
@@ -463,7 +473,7 @@ def add_chart_slide(
                                  Inches(cl), Inches(ct),
                                  width=Inches(cw), height=Inches(ch))
 
-    # ── Circle badges ────────────────────────────────────────────────────────
+    # ── Circle badges (bar charts only — pie has numbers embedded) ───────────
     if result is not None and result.type == "categorical" and chart_type == "bar" and n_bars > 0:
         freq_by_label = {f.label: f.percent for f in result.frequencies}
 
@@ -507,11 +517,11 @@ def add_chart_slide(
                 _draw_circle_badge(slide, cx, cy, r * 0.85, theme.CORAL,
                                    pct, bottom_box_spec.get("label", ""))
 
-    # ── Annotation panel ─────────────────────────────────────────────────────
+    # ── Annotation panel — positioned in the right teal panel ────────────────
     if annot_lines:
         _add_multiline_textbox(
             slide, (_ANNOT_L, ct, _ANNOT_W, ch),
-            annot_lines, font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
+            annot_lines, font_size=_ANNOT_FONT, color=theme.GRAY_DARK)
 
     # Base note: use template placeholder idx=22 if available, else manual footer
     if not _fill_placeholder(slide, 22, base_note):
@@ -629,6 +639,14 @@ def add_grid_slide(
         else:
             seg_colors.append(theme.GRAY_MID)
 
+    # ── Build legend spec — legend embedded inside the chart figure ───────────
+    circle_label = top_box_spec.get("label", "Total agree") if top_box_spec else None
+    legend_spec: list[tuple] = []
+    if circle_label:
+        legend_spec.append((circle_label, theme.TEAL_MID, True))
+    for seg, clr in zip(segments, seg_colors):
+        legend_spec.append((seg["label"], clr, False))
+
     chart_buf = chart_styles.render_stacked_bar(
         row_labels, segments, colors=seg_colors,
         fig_h=ch, fig_w=cw,
@@ -636,33 +654,12 @@ def add_grid_slide(
         axis_bottom=chart_styles.GRID_AXIS_BOTTOM,
         total_percents=total_percents if top_vals_list else None,
         circle_color=theme.TEAL_MID,
+        legend_spec=legend_spec if legend_spec else None,
     )
     chart_buf.seek(0)
-    # fig generated at exactly cw × ch — no stretching
     slide.shapes.add_picture(chart_buf,
                              Inches(cl), Inches(ct),
                              width=Inches(cw), height=Inches(ch))
-
-    # ── Legend (circle for total, rectangles for segments) ───────────────────
-    circle_label  = top_box_spec.get("label", "Total") if top_box_spec else None
-    legend_labels = [seg["label"] for seg in segments]
-    leg_colors    = list(seg_colors)
-    circle_idx: set[int] = set()
-    if circle_label:
-        legend_labels = [circle_label] + legend_labels
-        leg_colors    = [theme.TEAL_MID] + leg_colors
-        circle_idx    = {0}
-
-    leg_h   = 0.30
-    leg_t   = ct + ch + 0.08
-    leg_buf = chart_styles.legend_image(
-        legend_labels, colors=leg_colors,
-        fig_w=cw, circle_indices=circle_idx,
-    )
-    leg_buf.seek(0)
-    slide.shapes.add_picture(leg_buf,
-                             Inches(cl), Inches(leg_t),
-                             width=Inches(cw), height=Inches(leg_h))
 
     # ── Annotation panel ──────────────────────────────────────────────────────
     if annot_lines:
@@ -676,7 +673,7 @@ def add_grid_slide(
         if not ph:
             _add_multiline_textbox(
                 slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
-                annot_lines, font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
+                annot_lines, font_size=_ANNOT_FONT, color=theme.GRAY_DARK)
 
     # Base: layout '3_Title Slide' uses idx=22 for footer (at y=7.08")
     if not _fill_placeholder(slide, 22, base_note):

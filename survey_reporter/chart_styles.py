@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import math
 import textwrap
 from typing import List
 
@@ -158,8 +159,13 @@ def render_simple_bar(
     ax.invert_yaxis()
     ax.tick_params(axis="y", length=0)
     ax.xaxis.set_visible(False)
-    for spine in ax.spines.values():
-        spine.set_visible(False)
+    for name, spine in ax.spines.items():
+        if name == "left":
+            spine.set_visible(True)
+            spine.set_linewidth(1.4)
+            spine.set_color(theme.GRAY_DARK)
+        else:
+            spine.set_visible(False)
 
     buf = io.BytesIO()
     plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True)
@@ -184,6 +190,7 @@ def render_stacked_bar(
     axis_bottom: float | None = None,
     total_percents: List[float] | None = None,
     circle_color: str | None = None,
+    legend_spec: List[tuple] | None = None,
 ) -> io.BytesIO:
     """Render a stacked 0–100 horizontal bar chart for grid questions.
 
@@ -209,6 +216,9 @@ def render_stacked_bar(
         axis_left = GRID_AXIS_LEFT
     if axis_bottom is None:
         axis_bottom = GRID_AXIS_BOTTOM
+    # Reserve extra bottom margin when embedding the legend
+    if legend_spec:
+        axis_bottom = max(axis_bottom, 0.14)
 
     n_rows = len(row_labels)
     wrapped_labels = [_wrap_label(lbl) for lbl in row_labels]
@@ -264,7 +274,7 @@ def render_stacked_bar(
     ax.set_axisbelow(True)
 
     for name, spine in ax.spines.items():
-        if name == "bottom":
+        if name in ("bottom", "left"):
             spine.set_visible(True)
             spine.set_linewidth(1.4)
             spine.set_color(theme.GRAY_DARK)
@@ -305,6 +315,35 @@ def render_stacked_bar(
                     ha="center", va="center",
                     fontsize=c_fs, color=cclr, fontweight="bold",
                     zorder=6, clip_on=False)
+
+    # ── Embedded legend (drawn inside the figure below the axes) ─────────────
+    if legend_spec:
+        handles = []
+        for lbl, clr, is_circle in legend_spec:
+            if is_circle:
+                cclr = _hex_to_rgb(clr)
+                h = mlines.Line2D(
+                    [], [], marker="o", color="none",
+                    markerfacecolor="white", markeredgecolor=cclr,
+                    markeredgewidth=1.5, markersize=9, label=lbl,
+                )
+            else:
+                h = mpatches.Patch(facecolor=_hex_to_rgb(clr), label=lbl)
+            handles.append(h)
+        ax_center = (axis_left + AXIS_RIGHT) / 2
+        fig.legend(
+            handles=handles,
+            loc="lower center",
+            bbox_to_anchor=(ax_center, 0.005),
+            bbox_transform=fig.transFigure,
+            ncol=min(len(handles), 6),
+            fontsize=9,
+            frameon=False,
+            handlelength=1.2,
+            handleheight=0.8,
+            borderpad=0,
+            columnspacing=0.8,
+        )
 
     buf = io.BytesIO()
     plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True)
@@ -356,6 +395,82 @@ def legend_image(
     buf = io.BytesIO()
     plt.savefig(buf, format="png", dpi=CHART_DPI,
                 bbox_inches="tight", transparent=True)
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+# ---------------------------------------------------------------------------
+# Pie chart
+# ---------------------------------------------------------------------------
+
+_PIE_DARK_FILLS = {theme.TEAL_DARK, theme.TEAL_MID, theme.CORAL, theme.SALMON}
+
+
+def render_pie_chart(
+    labels: List[str],
+    values: List[float],
+    colors: List[str] | None = None,
+    fig_h: float | None = None,
+    fig_w: float | None = None,
+) -> io.BytesIO:
+    """Pie chart with % numbers inside segments and labelled leader lines outside."""
+    if colors is None:
+        colors = (theme.LIKERT_COLORS * 4)[:len(labels)]
+    if fig_h is None:
+        fig_h = CHART_FIG_H
+    if fig_w is None:
+        fig_w = CHART_FIG_W
+
+    total = sum(values) or 1.0
+    rgb_colors = [_hex_to_rgb(c) for c in colors]
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    fig.patch.set_facecolor("none")
+    ax.set_facecolor("none")
+
+    # Draw wedges only (no built-in labels / autopct — we draw them manually)
+    wedges, _ = ax.pie(
+        values,
+        colors=rgb_colors,
+        startangle=90,
+        wedgeprops={"linewidth": 2, "edgecolor": "white"},
+        radius=0.75,
+    )
+
+    # Numbers inside each segment
+    for wedge, val, clr in zip(wedges, values, colors):
+        mid_angle = math.radians((wedge.theta1 + wedge.theta2) / 2)
+        rx, ry = 0.46 * math.cos(mid_angle), 0.46 * math.sin(mid_angle)
+        pct = int(round(val / total * 100))
+        txt_clr = "white" if clr in _PIE_DARK_FILLS else theme.GRAY_DARK
+        ax.text(rx, ry, f"{pct}%",
+                ha="center", va="center",
+                fontsize=12, fontweight="bold", color=txt_clr, zorder=5)
+
+    # External labels with pointer lines
+    for wedge, label in zip(wedges, labels):
+        mid_angle = math.radians((wedge.theta1 + wedge.theta2) / 2)
+        cos_a, sin_a = math.cos(mid_angle), math.sin(mid_angle)
+        # Line: from wedge edge to an elbow just outside
+        x0, y0 = 0.78 * cos_a, 0.78 * sin_a   # wedge surface
+        x1, y1 = 0.98 * cos_a, 0.98 * sin_a   # elbow
+        ax.plot([x0, x1], [y0, y1],
+                color=theme.GRAY_DARK, lw=0.9, clip_on=False)
+        ha = "left" if cos_a >= 0 else "right"
+        x_txt = x1 + (0.04 if ha == "left" else -0.04)
+        ax.text(x_txt, y1, label,
+                ha=ha, va="center",
+                fontsize=10, fontweight="bold", color=theme.GRAY_DARK,
+                clip_on=False)
+
+    ax.set_xlim(-1.55, 1.55)
+    ax.set_ylim(-1.25, 1.25)
+    ax.set_aspect("equal")
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True,
+                bbox_inches="tight")
     plt.close(fig)
     buf.seek(0)
     return buf

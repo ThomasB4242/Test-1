@@ -62,12 +62,19 @@ data = {
         weighted([1, 2, 3, 4, 5], [15, 20, 25, 22, 18])
         for _ in range(N)
     ],
+
+    # Support for action (Yes / No / Unsure) — used for pie chart example
+    "support_action": [
+        weighted([1, 2, 3], [62, 24, 14])
+        for _ in range(N)
+    ],
 }
 
 df = pd.DataFrame(data)
 
 variable_labels = {
-    "respondent_id":  "Respondent ID",
+    "respondent_id":    "Respondent ID",
+    "support_action":   "Do you support taking action on this issue?",
     "issue_concern":  "How concerned are you about this issue in your community?",
     "govt_handling":  "The government is handling this issue effectively.",
     "stmt_community": "This issue has a direct impact on everyday people in our community.",
@@ -93,6 +100,7 @@ agree_5 = {
 }
 
 value_labels = {
+    "support_action": {1: "Yes", 2: "No", 3: "Unsure"},
     "issue_concern":     concern_5,
     "govt_handling":     agree_5,
     "stmt_community":    agree_5,
