@@ -120,7 +120,6 @@ VARIABLE_MAP = {
         "variable": "re_target_reasons",
         "n": 626,
         "question_label": "Main reason for supporting a renewable energy target",
-        "label_map": _REASON_LABELS,
     },
 }
 

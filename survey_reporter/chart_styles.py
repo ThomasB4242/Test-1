@@ -36,7 +36,7 @@ CHART_DPI: int = 150
 # Subplot margins (fractions of figure; matplotlib measures from bottom).
 # Exported so slide_builder.py can map bar positions to slide coordinates.
 AXIS_LEFT        = 0.38    # simple bar — short response labels
-GRID_AXIS_LEFT   = 0.48    # grid / stacked — longer statement labels
+GRID_AXIS_LEFT   = 0.54    # grid / stacked — longer statement labels
 AXIS_RIGHT       = 0.90
 AXIS_TOP         = 0.95    # leave a sliver at top
 AXIS_BOTTOM      = 0.03    # simple bar — no x-axis labels
@@ -236,8 +236,8 @@ def render_stacked_bar(
         axis_bottom = max(axis_bottom, _legend_abs_h / fig_h)
 
     n_rows = len(row_labels)
-    wrapped_labels = [_wrap_label(lbl, 36) for lbl in row_labels]
-    label_fs = 10 if n_rows <= 5 else (9 if n_rows <= 9 else 8)
+    wrapped_labels = [_wrap_label(lbl, 45) for lbl in row_labels]
+    label_fs = 11 if n_rows <= 5 else (10 if n_rows <= 9 else 9)
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor("none")
@@ -311,8 +311,8 @@ def render_stacked_bar(
         # Diameter in matplotlib points ≈ bar height in inches × 72 pt/in
         ax_h_in  = (AXIS_TOP - axis_bottom) * fig_h
         bar_h_in = 0.55 * ax_h_in / max(n_rows, 1)
-        c_diam   = bar_h_in * 72          # points
-        c_fs     = max(6, int(c_diam * 0.38))
+        c_diam   = max(16, bar_h_in * 72 * 1.4)   # pts; min 16pt so always visible
+        c_fs     = max(7, int(c_diam * 0.38))
         border_w = max(1.5, c_diam * 0.12)   # border thickness scales with size
         cclr_hex = circle_color or theme.TEAL_MID
         cclr     = _hex_to_rgb(cclr_hex)

@@ -133,6 +133,11 @@ slides:
       values:
         - "Very likely"
         - "Somewhat likely"
+    bottom_box:
+      label: "Total unlikely"
+      values:
+        - "Somewhat unlikely"
+        - "Very unlikely"
     row_labels:
       - "Providing good jobs"
       - "Creating new industries"
@@ -202,6 +207,12 @@ slides:
     heading: "Considering installing rooftop solar"
     question: "Are you considering installing rooftop solar? (%)"
     chart_type: pie
+    top_box:
+      values:
+        - "Yes"
+    bottom_box:
+      values:
+        - "No"
     annotation_font: 12
     annotations:
       - "Only 1 in 3 non-solar households"

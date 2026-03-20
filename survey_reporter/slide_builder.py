@@ -491,7 +491,12 @@ def add_chart_slide(
             percents_t2b = [f.percent for f in freqs]
             n_bars       = len(labels_t2b)
             ch           = 4.5   # fixed height for pie
-            pie_colors   = _scale_bar_colors(labels_t2b, top_box_spec, bottom_box_spec)
+            # Only colour-code slices when top/bottom boxes give distinct colours;
+            # otherwise pass None so render_pie_chart uses its LIKERT_COLORS default.
+            if top_box_spec or bottom_box_spec:
+                pie_colors = _scale_bar_colors(labels_t2b, top_box_spec, bottom_box_spec)
+            else:
+                pie_colors = None
             chart_buf    = chart_styles.render_pie_chart(
                 labels_t2b, percents_t2b, colors=pie_colors, fig_h=ch, fig_w=cw)
         else:
@@ -519,7 +524,7 @@ def add_chart_slide(
         # Bar height in slide inches — size circle to be clearly readable
         ax_h = (chart_styles.AXIS_TOP - chart_styles.AXIS_BOTTOM) * ch
         bar_h_slide = 0.60 * ax_h / max(n_bars, 1)
-        r = max(0.28, min(0.60, bar_h_slide * 0.85))
+        r = max(0.38, min(0.72, bar_h_slide * 1.00))
 
         # x-axis scale from render_simple_bar
         xlim_max = max(percents_t2b) * 1.12 + 3 if percents_t2b else 100.0
@@ -654,7 +659,8 @@ def add_grid_slide(
     n_rows = len(results)
     cl     = _CHART_L
     cw     = _GRID_CHART_W
-    ch     = min(_GRID_CHART_MAX_H, _chart_h_for_n(n_rows))
+    # All grids use at least 4.00" so small grids fill the mint strip
+    ch     = min(_GRID_CHART_MAX_H, max(4.00, _chart_h_for_n(n_rows)))
     # Vertically centre the chart within the mint-coloured strip
     ct     = (_GRID_MINT_TOP + _GRID_MINT_BOTTOM - ch) / 2
 
@@ -736,117 +742,127 @@ def add_table_slide(
     page_num: int | None = None,
     logo_path: str | None = None,
 ):
-    """Two-column table slide: response label | percentage.
+    """Two-column table slide: full response label (bold title + normal explanation) | %.
 
-    Rows are displayed in the order stored on *result* (already sorted by the
-    caller — typically descending %).  Uses the Title Slide layout so the
-    diagonal teal right-panel provides the annotation sidebar.
+    Uses a Blank layout — no sidebar.  Each label is split on ': ' so the
+    short title is bold and the explanation text is regular weight.
+    Rows are shown in descending % order (reversed from stored order).
     """
-    from pptx.util import Pt, Inches
-    from pptx.dml.color import RGBColor
-    from pptx.enum.text import PP_ALIGN
     from lxml import etree
 
-    slide = _layout_slide(prs, _LAYOUT_SINGLE_BAR)
+    slide = _blank_slide(prs)
     _add_logo(slide, logo_path)
 
-    heading     = spec.get("heading", result.label if result else "")
-    question    = spec.get("question", "")
-    annot_lines = spec.get("annotations", [])
-    base_note   = spec.get("base", "")
+    heading   = spec.get("heading", result.label if result else "")
+    question  = spec.get("question", "")
+    base_note = spec.get("base", "")
 
-    if not _fill_placeholder(slide, 0, heading):
-        _add_textbox(slide, theme.HEADING_BOX, heading,
-                     font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
-        _add_heading_rule(slide)
+    _add_textbox(slide, theme.HEADING_BOX, heading,
+                 font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
+    _add_heading_rule(slide)
     if question:
-        if not _fill_placeholder(slide, 21, question):
-            _add_textbox(slide, theme.QUESTION_BOX, question,
-                         font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
+        _add_textbox(slide, theme.QUESTION_BOX, question,
+                     font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
+
+    _NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+
+    def _apply_bg(cell, hex_color: str):
+        tc   = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        for child in list(tcPr):
+            tag = child.tag.split('}')[-1]
+            if tag in ('solidFill', 'noFill'):
+                tcPr.remove(child)
+        sf  = etree.SubElement(tcPr, f'{{{_NS}}}solidFill')
+        clr = etree.SubElement(sf,   f'{{{_NS}}}srgbClr')
+        clr.set('val', hex_color.lstrip('#'))
+
+    def _header_cell(cell, text: str, align=PP_ALIGN.LEFT):
+        cell.text = ""
+        tf = cell.text_frame
+        tf.word_wrap = False
+        p  = tf.paragraphs[0]
+        p.alignment = align
+        run = p.add_run()
+        run.text = text
+        run.font.name  = theme.FONT_FACE
+        run.font.size  = Pt(11)
+        run.font.bold  = True
+        run.font.color.rgb = _rgb(theme.WHITE)
+        _apply_bg(cell, theme.TEAL_DARK)
+
+    def _label_cell(cell, label: str, fg: str, bg: str):
+        """Bold the title (before first ': '); leave the explanation normal."""
+        cell.text = ""
+        tf = cell.text_frame
+        tf.word_wrap = True
+        p  = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        if ': ' in label:
+            title, explanation = label.split(': ', 1)
+            for txt, bold in ((title, True), (': ' + explanation, False)):
+                run = p.add_run()
+                run.text = txt
+                run.font.name  = theme.FONT_FACE
+                run.font.size  = Pt(10)
+                run.font.bold  = bold
+                run.font.color.rgb = _rgb(fg)
+        else:
+            run = p.add_run()
+            run.text = label
+            run.font.name  = theme.FONT_FACE
+            run.font.size  = Pt(10)
+            run.font.bold  = True
+            run.font.color.rgb = _rgb(fg)
+        _apply_bg(cell, bg)
+
+    def _pct_cell(cell, pct: float, fg: str, bg: str):
+        cell.text = ""
+        tf = cell.text_frame
+        tf.word_wrap = False
+        p  = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        run = p.add_run()
+        run.text = f"{int(round(pct))}%"
+        run.font.name  = theme.FONT_FACE
+        run.font.size  = Pt(10)
+        run.font.bold  = True
+        run.font.color.rgb = _rgb(fg)
+        _apply_bg(cell, bg)
 
     if result is not None and result.frequencies:
-        # Show in original (descending %) order — reversed from stored order
-        freqs = list(reversed(result.frequencies))
-        n_rows = len(freqs)
-        max_pct = max(f.percent for f in freqs) if freqs else 1.0
+        freqs    = list(reversed(result.frequencies))   # descending %
+        n_rows   = len(freqs)
+        max_pct  = max(f.percent for f in freqs)
 
-        # Table geometry
-        tbl_l = _CHART_L
-        tbl_t = _CHART_T
-        tbl_w = _CHART_W
-        row_h_in = min(0.38, (theme.SLIDE_H - tbl_t - 0.60) / max(n_rows + 1, 1))
-        tbl_h = row_h_in * (n_rows + 1)   # +1 for header row
+        tbl_l    = _CHART_L
+        tbl_t    = _CHART_T
+        tbl_w    = theme.SLIDE_W - tbl_l - 0.40   # full width, small right margin
+        avail_h  = theme.SLIDE_H - tbl_t - 0.55
+        row_h_in = min(0.42, avail_h / max(n_rows + 1, 1))
+        tbl_h    = row_h_in * (n_rows + 1)
 
-        from pptx.util import Emu
         tbl_frame = slide.shapes.add_table(
             n_rows + 1, 2,
             Inches(tbl_l), Inches(tbl_t),
             Inches(tbl_w), Inches(tbl_h),
         )
         tbl = tbl_frame.table
+        tbl.columns[0].width = Inches(tbl_w * 0.85)
+        tbl.columns[1].width = Inches(tbl_w * 0.15)
 
-        # Column widths: label takes 78%, pct takes 22%
-        tbl.columns[0].width = Inches(tbl_w * 0.78)
-        tbl.columns[1].width = Inches(tbl_w * 0.22)
+        _header_cell(tbl.cell(0, 0), "Response")
+        _header_cell(tbl.cell(0, 1), "%", align=PP_ALIGN.CENTER)
 
-        def _cell_style(cell, text: str, font_size: int, bold: bool,
-                        fg: str, bg: str, align=PP_ALIGN.LEFT):
-            cell.text = ""
-            tf = cell.text_frame
-            tf.word_wrap = False
-            p = tf.paragraphs[0]
-            p.alignment = align
-            run = p.add_run()
-            run.text = text
-            run.font.name = theme.FONT_FACE
-            run.font.size = Pt(font_size)
-            run.font.bold = bold
-            run.font.color.rgb = _rgb(fg)
-            # Background fill via XML
-            tc = cell._tc
-            tcPr = tc.get_or_add_tcPr()
-            # Remove existing fills
-            for child in list(tcPr):
-                if child.tag.endswith('}solidFill') or child.tag.endswith('}noFill'):
-                    tcPr.remove(child)
-            ns = 'http://schemas.openxmlformats.org/drawingml/2006/main'
-            solidFill = etree.SubElement(tcPr, f'{{{ns}}}solidFill')
-            srgbClr   = etree.SubElement(solidFill, f'{{{ns}}}srgbClr')
-            srgbClr.set('val', bg.lstrip('#'))
-
-        # Header row
-        _cell_style(tbl.cell(0, 0), "Response", 11, True, theme.WHITE, theme.TEAL_DARK)
-        _cell_style(tbl.cell(0, 1), "%", 11, True, theme.WHITE, theme.TEAL_DARK,
-                    align=PP_ALIGN.CENTER)
-
-        # Data rows: alternating white / very light teal
         _ROW_ALT = "#E6F8F9"
         for i, freq in enumerate(freqs):
-            bg = theme.WHITE if i % 2 == 0 else _ROW_ALT
-            # Highlight top row in slightly bolder teal text
+            bg     = theme.WHITE if i % 2 == 0 else _ROW_ALT
             fg_lbl = theme.TEAL_DARK if i == 0 else theme.GRAY_DARK
-            _cell_style(tbl.cell(i + 1, 0), freq.label, 10, (i == 0), fg_lbl, bg)
-            _cell_style(tbl.cell(i + 1, 1), f"{int(round(freq.percent))}%",
-                        10, True, theme.TEAL_DARK if freq.percent >= max_pct * 0.7 else theme.GRAY_DARK,
-                        bg, align=PP_ALIGN.CENTER)
+            fg_pct = theme.TEAL_DARK if freq.percent >= max_pct * 0.7 else theme.GRAY_DARK
+            _label_cell(tbl.cell(i + 1, 0), freq.label, fg_lbl, bg)
+            _pct_cell(tbl.cell(i + 1, 1), freq.percent, fg_pct, bg)
 
-    # Annotation panel
-    if annot_lines:
-        annot_font = spec.get("annotation_font", _ANNOT_FONT)
-        _add_multiline_textbox(
-            slide, (_ANNOT_L, _CHART_T, _ANNOT_W, 4.5),
-            annot_lines, font_size=annot_font, color=theme.GRAY_DARK)
-
-    if not _fill_placeholder(slide, 22, base_note):
-        _add_footer(slide, base_note, page_num)
-    else:
-        if page_num is not None:
-            pb = theme.PAGE_NUM_BOX
-            _add_oval(slide, pb, theme.TEAL_DARK)
-            l, t, w, h = pb
-            _add_textbox(slide, (l, t + h * 0.12, w, h * 0.76), str(page_num),
-                         font_size=10, color=theme.WHITE,
-                         bold=True, align=PP_ALIGN.CENTER)
+    _add_footer(slide, base_note, page_num)
 
 
 # ---------------------------------------------------------------------------
