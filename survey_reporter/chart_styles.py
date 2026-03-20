@@ -225,8 +225,6 @@ def render_stacked_bar(
         fig_h = CHART_FIG_H
     if fig_w is None:
         fig_w = CHART_FIG_W
-    if axis_left is None:
-        axis_left = GRID_AXIS_LEFT
     if axis_bottom is None:
         axis_bottom = GRID_AXIS_BOTTOM
     # Reserve extra bottom margin when embedding the legend.
@@ -238,6 +236,28 @@ def render_stacked_bar(
     n_rows = len(row_labels)
     wrapped_labels = [_wrap_label(lbl, 45) for lbl in row_labels]
     label_fs = 11 if n_rows <= 5 else (10 if n_rows <= 9 else 9)
+
+    # Adaptive axis_left: scale with longest label so short-label grids get
+    # wider bar area while long-label grids still have room to read labels.
+    if axis_left is None:
+        _max_chars = max(
+            (max((len(part) for part in lbl.split('\n')), default=0)
+             for lbl in wrapped_labels),
+            default=15
+        )
+        # ~4 chars → 0.28, ~20 chars → 0.36, ~45 chars → 0.52; hard caps applied
+        axis_left = max(0.26, min(GRID_AXIS_LEFT, 0.18 + _max_chars * 0.0075))
+
+    # Adaptive left margin — scale to the actual longest label so short-label
+    # grids (e.g. Coal / Oil / Gas) don't waste half the figure on whitespace.
+    if axis_left is None:
+        max_line_chars = max(
+            (max((len(part) for part in lbl.split('\n')), default=0)
+             for lbl in wrapped_labels),
+            default=15,
+        )
+        # 8 chars → ~0.28, 20 chars → ~0.36, 40 chars → ~0.53; capped 0.28–0.54
+        axis_left = max(0.28, min(0.54, 0.18 + max_line_chars * 0.0088))
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor("none")
@@ -311,7 +331,7 @@ def render_stacked_bar(
         # Diameter in matplotlib points ≈ bar height in inches × 72 pt/in
         ax_h_in  = (AXIS_TOP - axis_bottom) * fig_h
         bar_h_in = 0.55 * ax_h_in / max(n_rows, 1)
-        c_diam   = max(16, bar_h_in * 72 * 1.4)   # pts; min 16pt so always visible
+        c_diam   = max(16, bar_h_in * 72)   # pts; min 16pt so always visible
         c_fs     = max(7, int(c_diam * 0.38))
         border_w = max(1.5, c_diam * 0.12)   # border thickness scales with size
         cclr_hex = circle_color or theme.TEAL_MID

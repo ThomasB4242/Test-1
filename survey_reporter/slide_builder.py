@@ -304,7 +304,9 @@ def _draw_circle_badge(slide, cx: float, cy: float, r: float,
     """Draw a filled circle centred at (cx, cy) with radius r (inches).
 
     The percentage number and % sign use different font sizes (% is smaller).
-    Label text is auto-sized to fit within the circle width.
+    Label font is sized so the text always fits; the label textbox is made
+    wider than the circle so nothing is clipped (excess is invisible on the
+    slide background).
     """
     l, t, d = cx - r, cy - r, r * 2
     _add_oval(slide, (l, t, d, d), fill_color)
@@ -313,11 +315,13 @@ def _draw_circle_badge(slide, cx: float, cy: float, r: float,
     num_fs   = max(10, int(r * 62))   # main number
     pct_fs   = max(7,  int(r * 40))   # % suffix — smaller
 
-    # Auto-size the label so it fits within the circle diameter
+    # Auto-size the label to guarantee it fits inside the circle.
+    # Use 80% of circle width as the effective text area and 0.70 pts-per-char
+    # (conservative for bold fonts) so the calculation always leaves room.
     label_fs_base = max(7, int(r * 32))
     if label:
-        circle_pt_w = d * 72                              # circle width in pts
-        chars_fit   = max(3, int(circle_pt_w / (label_fs_base * 0.62)))
+        circle_pt_w = d * 72
+        chars_fit   = max(3, int(circle_pt_w * 0.80 / (label_fs_base * 0.70)))
         label_fs    = label_fs_base if len(label) <= chars_fit else max(
             6, int(label_fs_base * chars_fit / len(label))
         )
@@ -343,9 +347,13 @@ def _draw_circle_badge(slide, cx: float, cy: float, r: float,
 
     if show_label and label:
         _pct_textbox(0.06, 0.52)
-        _add_textbox(slide, (l, t + d * 0.56, d, d * 0.38),
+        # Make the label textbox 40% wider than the circle (20% extra each side)
+        # so text never gets clipped. White text beyond the circle boundary is
+        # invisible against the slide background.
+        extra = d * 0.20
+        _add_textbox(slide, (l - extra, t + d * 0.56, d + extra * 2, d * 0.38),
                      label, font_size=label_fs, color=theme.WHITE,
-                     align=PP_ALIGN.CENTER)
+                     align=PP_ALIGN.CENTER, word_wrap=False)
     else:
         # Number only — vertically centred
         _pct_textbox(0.18, 0.60)
@@ -700,7 +708,7 @@ def add_grid_slide(
     chart_buf = chart_styles.render_stacked_bar(
         row_labels, segments, colors=seg_colors,
         fig_h=ch, fig_w=cw,
-        axis_left=chart_styles.GRID_AXIS_LEFT,
+        axis_left=None,   # auto-computed per label length inside render_stacked_bar
         axis_bottom=chart_styles.GRID_AXIS_BOTTOM,
         total_percents=total_percents if top_vals_list else None,
         circle_color=theme.TEAL_MID,
