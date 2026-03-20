@@ -449,42 +449,57 @@ def add_chart_slide(
             ch           = _chart_h_for_n(n_bars)
             bar_colors   = _scale_bar_colors(labels_t2b, top_box_spec, bottom_box_spec)
             chart_buf    = chart_styles.render_simple_bar(
-                labels_t2b, percents_t2b, bar_colors=bar_colors, fig_h=ch)
+                labels_t2b, percents_t2b, bar_colors=bar_colors, fig_h=ch, fig_w=cw)
     else:
         ch = _chart_h_for_n(5)
 
     if chart_buf is not None:
         chart_buf.seek(0)
+        # fig generated at exactly cw × ch — specify both to avoid stretching
         slide.shapes.add_picture(chart_buf,
                                  Inches(cl), Inches(ct),
                                  width=Inches(cw), height=Inches(ch))
 
     # ── Circle badges ────────────────────────────────────────────────────────
-    if result is not None and result.type == "categorical":
+    if result is not None and result.type == "categorical" and chart_type == "bar" and n_bars > 0:
         freq_by_label = {f.label: f.percent for f in result.frequencies}
-        r  = 0.62
-        cx = cl + cw - r * 0.4  # overlaps right edge of chart
 
-        if chart_type == "bar" and n_bars > 0:
-            if top_box_spec:
-                idxs = [i for i, lbl in enumerate(labels_t2b)
-                        if lbl in set(top_box_spec.get("values", []))]
-                if idxs:
-                    cy  = _bar_circle_center_y(
-                        sum(idxs) / len(idxs), n_bars, ct, ch)
-                    pct = _sum_box(freq_by_label, top_box_spec.get("values", []))
-                    _draw_circle_badge(slide, cx, cy, r, theme.TEAL_MID,
-                                       pct, top_box_spec.get("label", ""))
+        # Bar height in slide inches — size circle to match
+        ax_h = (chart_styles.AXIS_TOP - chart_styles.AXIS_BOTTOM) * ch
+        bar_h_slide = 0.60 * ax_h / max(n_bars, 1)
+        r = max(0.18, min(0.45, bar_h_slide * 0.55))
 
-            if bottom_box_spec:
-                idxs = [i for i, lbl in enumerate(labels_t2b)
-                        if lbl in set(bottom_box_spec.get("values", []))]
-                if idxs:
-                    cy  = _bar_circle_center_y(
-                        sum(idxs) / len(idxs), n_bars, ct, ch)
-                    pct = _sum_box(freq_by_label, bottom_box_spec.get("values", []))
-                    _draw_circle_badge(slide, cx, cy, r * 0.85, theme.CORAL,
-                                       pct, bottom_box_spec.get("label", ""))
+        # x-axis scale from render_simple_bar
+        xlim_max = max(percents_t2b) * 1.12 + 3 if percents_t2b else 100.0
+
+        def _circle_cx_simple(pct_val: float) -> float:
+            """Map a data value to slide x-coordinate for the simple bar chart."""
+            x_frac = chart_styles.AXIS_LEFT + (pct_val / xlim_max) * (
+                chart_styles.AXIS_RIGHT - chart_styles.AXIS_LEFT
+            )
+            return cl + x_frac * cw
+
+        if top_box_spec:
+            idxs = [i for i, lbl in enumerate(labels_t2b)
+                    if lbl in set(top_box_spec.get("values", []))]
+            if idxs:
+                cy  = _bar_circle_center_y(
+                    sum(idxs) / len(idxs), n_bars, ct, ch)
+                pct = _sum_box(freq_by_label, top_box_spec.get("values", []))
+                cx  = _circle_cx_simple(pct)
+                _draw_circle_badge(slide, cx, cy, r, theme.TEAL_MID,
+                                   pct, top_box_spec.get("label", ""))
+
+        if bottom_box_spec:
+            idxs = [i for i, lbl in enumerate(labels_t2b)
+                    if lbl in set(bottom_box_spec.get("values", []))]
+            if idxs:
+                cy  = _bar_circle_center_y(
+                    sum(idxs) / len(idxs), n_bars, ct, ch)
+                pct = _sum_box(freq_by_label, bottom_box_spec.get("values", []))
+                cx  = _circle_cx_simple(pct)
+                _draw_circle_badge(slide, cx, cy, r * 0.85, theme.CORAL,
+                                   pct, bottom_box_spec.get("label", ""))
 
     # ── Annotation panel ─────────────────────────────────────────────────────
     if annot_lines:
@@ -524,7 +539,8 @@ def add_grid_slide(
     Rows are sorted descending by top-box total percentage.
     """
     # Use the 'Section Header' layout — coloured strip, white top and bottom
-    slide = _layout_slide(prs, _LAYOUT_GRID)
+    # Try the un-prefixed variant first, then the '1_' prefixed variant
+    slide = _layout_slide(prs, _LAYOUT_GRID, "1_section header")
     _add_logo(slide, logo_path)
 
     heading             = spec.get("heading", "")
@@ -610,13 +626,14 @@ def add_grid_slide(
 
     chart_buf = chart_styles.render_stacked_bar(
         row_labels, segments, colors=seg_colors,
-        fig_h=ch,
+        fig_h=ch, fig_w=cw,
         axis_left=chart_styles.GRID_AXIS_LEFT,
         axis_bottom=chart_styles.GRID_AXIS_BOTTOM,
         total_percents=total_percents if top_vals_list else None,
         circle_color=theme.TEAL_MID,
     )
     chart_buf.seek(0)
+    # fig generated at exactly cw × ch — no stretching
     slide.shapes.add_picture(chart_buf,
                              Inches(cl), Inches(ct),
                              width=Inches(cw), height=Inches(ch))

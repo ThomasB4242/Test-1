@@ -87,9 +87,10 @@ def _rounded_right_bar(ax, x0: float, x1: float, y_center: float,
 
 
 def _bar_radii(fig_h: float, n_rows: int,
-               axis_left: float, axis_bottom: float) -> tuple[float, float]:
+               axis_left: float, axis_bottom: float,
+               fig_w: float = CHART_FIG_W) -> tuple[float, float]:
     """Return (r_x, r_y) in data coordinates for visually circular corners."""
-    ax_w_in = (AXIS_RIGHT - axis_left) * CHART_FIG_W
+    ax_w_in = (AXIS_RIGHT - axis_left) * fig_w
     ax_h_in = (AXIS_TOP - axis_bottom) * fig_h
     r_y = 0.55 * 0.22                                  # 22% of bar height in y-data-units
     r_x = (r_y / (max(n_rows, 1) / ax_h_in)) * (100.0 / ax_w_in)
@@ -106,15 +107,21 @@ def render_simple_bar(
     color: str | None = None,
     bar_colors: List[str] | None = None,
     fig_h: float | None = None,
+    fig_w: float | None = None,
 ) -> io.BytesIO:
-    """Render a simple horizontal bar chart."""
+    """Render a simple horizontal bar chart.
+
+    Returns (buf, xlim_max) so callers can map data coords to slide coords.
+    """
     if bar_colors is None:
         bar_colors = [color or theme.BAR_COLOR] * len(labels)
     if fig_h is None:
         fig_h = CHART_FIG_H
+    if fig_w is None:
+        fig_w = CHART_FIG_W
 
     n = len(labels)
-    fig, ax = plt.subplots(figsize=(CHART_FIG_W, fig_h))
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor("none")
     ax.set_facecolor("none")
     plt.subplots_adjust(
@@ -127,7 +134,7 @@ def render_simple_bar(
     ax.set_xlim(0, xlim_max)
 
     # Rounded-corner radii scaled to give visually circular corners
-    ax_w_in = (AXIS_RIGHT - AXIS_LEFT) * CHART_FIG_W
+    ax_w_in = (AXIS_RIGHT - AXIS_LEFT) * fig_w
     ax_h_in = (AXIS_TOP - AXIS_BOTTOM) * fig_h
     r_y = 0.60 * 0.38
     r_x = (r_y / (max(n, 1) / ax_h_in)) * (xlim_max / ax_w_in)
@@ -144,7 +151,9 @@ def render_simple_bar(
                     fontsize=10, color=theme.GRAY_DARK, fontweight="bold", zorder=4)
 
     ax.set_yticks(list(range(n)))
-    ax.set_yticklabels(labels, fontsize=10, color=theme.GRAY_DARK, fontweight="bold")
+    ax.set_yticklabels(labels, fontsize=10, color=theme.GRAY_DARK)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontweight("bold")
     ax.set_ylim(-0.55, n - 0.45)
     ax.invert_yaxis()
     ax.tick_params(axis="y", length=0)
@@ -156,6 +165,8 @@ def render_simple_bar(
     plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True)
     plt.close(fig)
     buf.seek(0)
+    # Attach xlim_max so callers can compute circle positions without re-deriving it
+    buf._xlim_max = xlim_max  # type: ignore[attr-defined]
     return buf
 
 
@@ -168,6 +179,7 @@ def render_stacked_bar(
     segments: List[dict],
     colors: List[str] | None = None,
     fig_h: float | None = None,
+    fig_w: float | None = None,
     axis_left: float | None = None,
     axis_bottom: float | None = None,
     total_percents: List[float] | None = None,
@@ -191,6 +203,8 @@ def render_stacked_bar(
         colors = theme.LIKERT_COLORS
     if fig_h is None:
         fig_h = CHART_FIG_H
+    if fig_w is None:
+        fig_w = CHART_FIG_W
     if axis_left is None:
         axis_left = GRID_AXIS_LEFT
     if axis_bottom is None:
@@ -200,7 +214,7 @@ def render_stacked_bar(
     wrapped_labels = [_wrap_label(lbl) for lbl in row_labels]
     label_fs = 9 if n_rows <= 6 else 8
 
-    fig, ax = plt.subplots(figsize=(CHART_FIG_W, fig_h))
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor("none")
     ax.set_facecolor("none")
     plt.subplots_adjust(
@@ -209,7 +223,7 @@ def render_stacked_bar(
     )
 
     # Rounded corner radii for visually circular corners
-    r_x, r_y = _bar_radii(fig_h, n_rows, axis_left, axis_bottom)
+    r_x, r_y = _bar_radii(fig_h, n_rows, axis_left, axis_bottom, fig_w)
 
     # Pre-compute which segment is the last (rightmost) non-zero for each row
     last_seg_idx = [-1] * n_rows
@@ -260,7 +274,9 @@ def render_stacked_bar(
     # ── y-axis: bold labels ───────────────────────────────────────────────────
     ax.set_yticks(list(range(n_rows)))
     ax.set_yticklabels(wrapped_labels, fontsize=label_fs, color=theme.GRAY_DARK,
-                       linespacing=1.1, fontweight="bold")
+                       linespacing=1.1)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontweight("bold")
     ax.set_ylim(-0.55, n_rows - 0.45)
     ax.invert_yaxis()
     ax.tick_params(axis="y", length=0)
@@ -332,7 +348,7 @@ def legend_image(
     fig.patch.set_alpha(0.0)
     ax.set_facecolor("none")
     ax.set_axis_off()
-    ax.legend(handles=handles, loc="center", ncol=n, fontsize=7,
+    ax.legend(handles=handles, loc="center", ncol=n, fontsize=9,
               frameon=False, handlelength=1.2, handleheight=0.8,
               borderpad=0, columnspacing=0.9)
     plt.tight_layout(pad=0)
