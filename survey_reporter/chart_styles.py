@@ -115,8 +115,8 @@ def render_simple_bar(
 
     n = len(labels)
     fig, ax = plt.subplots(figsize=(CHART_FIG_W, fig_h))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
+    fig.patch.set_facecolor("none")
+    ax.set_facecolor("none")
     plt.subplots_adjust(
         left=AXIS_LEFT, right=AXIS_RIGHT,
         top=AXIS_TOP,   bottom=AXIS_BOTTOM,
@@ -144,15 +144,16 @@ def render_simple_bar(
                     fontsize=10, color=theme.GRAY_DARK, fontweight="bold", zorder=4)
 
     ax.set_yticks(list(range(n)))
-    ax.set_yticklabels(labels, fontsize=10, color=theme.GRAY_DARK)
+    ax.set_yticklabels(labels, fontsize=10, color=theme.GRAY_DARK, fontweight="bold")
     ax.set_ylim(-0.55, n - 0.45)
     ax.invert_yaxis()
+    ax.tick_params(axis="y", length=0)
     ax.xaxis.set_visible(False)
     for spine in ax.spines.values():
         spine.set_visible(False)
 
     buf = io.BytesIO()
-    plt.savefig(buf, format="png", dpi=CHART_DPI)
+    plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True)
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -200,8 +201,8 @@ def render_stacked_bar(
     label_fs = 9 if n_rows <= 6 else 8
 
     fig, ax = plt.subplots(figsize=(CHART_FIG_W, fig_h))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
+    fig.patch.set_facecolor("none")
+    ax.set_facecolor("none")
     plt.subplots_adjust(
         left=axis_left, right=AXIS_RIGHT,
         top=AXIS_TOP,   bottom=axis_bottom,
@@ -290,7 +291,7 @@ def render_stacked_bar(
                     zorder=6, clip_on=False)
 
     buf = io.BytesIO()
-    plt.savefig(buf, format="png", dpi=CHART_DPI)
+    plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True)
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -317,10 +318,11 @@ def legend_image(
     for i, label in enumerate(segment_labels):
         clr = _hex_to_rgb(colors[i % len(colors)])
         if i in circle_indices:
+            teal_rgb = _hex_to_rgb(theme.TEAL_MID)
             h = mlines.Line2D(
                 [], [], color="none", marker="o",
-                markerfacecolor=clr, markeredgecolor="none",
-                markersize=9, label=label,
+                markerfacecolor="white", markeredgecolor=teal_rgb,
+                markeredgewidth=1.5, markersize=9, label=label,
             )
         else:
             h = mpatches.Patch(color=clr, label=label)

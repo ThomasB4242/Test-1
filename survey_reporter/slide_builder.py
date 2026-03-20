@@ -188,34 +188,15 @@ def _layout_slide(prs: Presentation, *layout_names: str):
     return _blank_slide(prs)
 
 
-def _fill_placeholder(slide, ph_idx: int, text: str,
-                      bold: bool | None = None,
-                      italic: bool | None = None,
-                      font_size: int | None = None,
-                      color: str | None = None):
+def _fill_placeholder(slide, ph_idx: int, text: str):
     """Write *text* into the slide placeholder with the given idx.
 
+    Uses the template's built-in formatting — no explicit overrides.
     Returns the placeholder shape, or None if not found.
-    Explicit formatting only overrides fields that are supplied.
     """
     for ph in slide.placeholders:
         if ph.placeholder_format.idx == ph_idx:
-            tf = ph.text_frame
-            tf.word_wrap = True
-            p = tf.paragraphs[0]
-            for run in p.runs:
-                run.text = ""
-            run = p.add_run()
-            run.text = text
-            run.font.name = theme.FONT_FACE
-            if font_size is not None:
-                run.font.size = Pt(font_size)
-            if color is not None:
-                run.font.color.rgb = _rgb(color)
-            if bold is not None:
-                run.font.bold = bold
-            if italic is not None:
-                run.font.italic = italic
+            ph.text_frame.text = text
             return ph
     return None
 
@@ -393,19 +374,19 @@ def add_commentary_slide(prs: Presentation, spec: dict, page_num: int | None = N
 # ---------------------------------------------------------------------------
 
 _CHART_L  = 0.34    # chart image left edge
-_CHART_W  = 7.23    # single-bar chart image width
+_CHART_W  = 5.80    # single-bar chart image width
 _CHART_T  = 1.87    # chart image top (below title + question)
-_ANNOT_L  = 8.07    # annotation text left (single-bar layout)
-_ANNOT_W  = 12.93 - _ANNOT_L  # ~4.86"
+_ANNOT_L  = 6.30    # annotation text left (single-bar layout)
+_ANNOT_W  = 12.93 - _ANNOT_L  # ~6.63"
 
 # Grid layout — wider chart, annotations pushed further right
-_GRID_CHART_W  = 6.67   # grid stacked-bar image width
-_GRID_ANNOT_L  = 8.70   # grid annotation left (matches template placeholder x)
-_GRID_ANNOT_W  = 12.93 - _GRID_ANNOT_L  # ~4.23"
+_GRID_CHART_W  = 9.00   # grid stacked-bar image width
+_GRID_ANNOT_L  = 9.50   # grid annotation left
+_GRID_ANNOT_W  = 12.93 - _GRID_ANNOT_L  # ~3.43"
 
 # Template layout names
 _LAYOUT_SINGLE_BAR = "title slide"       # Layout 1  — diagonal right background
-_LAYOUT_GRID       = "1_two content"     # Layout 9  — wide chart background
+_LAYOUT_GRID       = "section header"    # Layout 6  — coloured horizontal strip
 
 
 # ---------------------------------------------------------------------------
@@ -432,17 +413,13 @@ def add_chart_slide(
     bottom_box_spec = spec.get("bottom_box")
 
     # Fill template placeholders (idx 0=title, 21=question, 22=base/footer)
-    if not _fill_placeholder(slide, 0, heading,
-                             bold=True, color=theme.TEAL_DARK,
-                             font_size=theme.FONT_HEADING):
+    if not _fill_placeholder(slide, 0, heading):
         _add_textbox(slide, theme.HEADING_BOX, heading,
                      font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
         _add_heading_rule(slide)
 
     if question:
-        if not _fill_placeholder(slide, 21, question,
-                                 italic=True, color=theme.GRAY_DARK,
-                                 font_size=theme.FONT_QUESTION):
+        if not _fill_placeholder(slide, 21, question):
             _add_textbox(slide, theme.QUESTION_BOX, question,
                          font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
 
@@ -516,9 +493,7 @@ def add_chart_slide(
             annot_lines, font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
 
     # Base note: use template placeholder idx=22 if available, else manual footer
-    if not _fill_placeholder(slide, 22, base_note,
-                             font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK,
-                             italic=True):
+    if not _fill_placeholder(slide, 22, base_note):
         _add_footer(slide, base_note, page_num)
     else:
         # Still add page number oval separately
@@ -544,10 +519,11 @@ def add_grid_slide(
 ):
     """Stacked horizontal bar chart — one row per question.
 
-    Uses the '1_Two Content' template layout for the wide-chart background.
+    Uses the 'Section Header' template layout (coloured horizontal strip).
     Total circles are rendered inside the matplotlib figure.
+    Rows are sorted descending by top-box total percentage.
     """
-    # Use the '1_Two Content' layout — provides the horizontal-bar background
+    # Use the 'Section Header' layout — coloured strip, white top and bottom
     slide = _layout_slide(prs, _LAYOUT_GRID)
     _add_logo(slide, logo_path)
 
@@ -561,27 +537,18 @@ def add_grid_slide(
     row_label_overrides = spec.get("row_labels", [])
 
     # Fill template placeholders; fall back to manual textboxes if not found
-    if not _fill_placeholder(slide, 0, heading,
-                             bold=True, color=theme.TEAL_DARK,
-                             font_size=theme.FONT_HEADING):
+    if not _fill_placeholder(slide, 0, heading):
         _add_textbox(slide, theme.HEADING_BOX, heading,
                      font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
         _add_heading_rule(slide)
     if question:
-        if not _fill_placeholder(slide, 21, question,
-                                 italic=True, color=theme.GRAY_DARK,
-                                 font_size=theme.FONT_QUESTION):
+        if not _fill_placeholder(slide, 21, question):
             _add_textbox(slide, theme.QUESTION_BOX, question,
                          font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
 
     if not results:
         _add_footer(slide, base_note, page_num)
         return
-
-    n_rows = len(results)
-    cl, ct = _CHART_L, _CHART_T
-    cw     = _GRID_CHART_W
-    ch     = _chart_h_for_n(n_rows)
 
     if not scale_order:
         scale_order = [f.label for f in results[0].frequencies]
@@ -594,6 +561,27 @@ def add_grid_slide(
         else:
             lbl = result.label
             row_labels.append(lbl[:50] + "…" if len(lbl) > 50 else lbl)
+
+    # Compute top-box totals and sort rows descending
+    top_vals_list = top_box_spec.get("values", []) if top_box_spec else []
+    total_percents: list[float] = []
+    for res in results:
+        freq_by_label = {f.label: f.percent for f in res.frequencies}
+        tp = float(_sum_box(freq_by_label, top_vals_list)) if top_vals_list else 0.0
+        total_percents.append(tp)
+
+    if top_vals_list:
+        sorted_triples = sorted(
+            zip(total_percents, results, row_labels), reverse=True
+        )
+        total_percents = [p for p, _, _ in sorted_triples]
+        results        = [r for _, r, _ in sorted_triples]
+        row_labels     = [l for _, _, l in sorted_triples]
+
+    n_rows = len(results)
+    cl, ct = _CHART_L, _CHART_T
+    cw     = _GRID_CHART_W
+    ch     = _chart_h_for_n(n_rows)
 
     # Build segments
     segments: list[dict] = []
@@ -619,14 +607,6 @@ def add_grid_slide(
             bot_idx += 1
         else:
             seg_colors.append(theme.GRAY_MID)
-
-    # ── Render chart (circles are drawn inside the matplotlib figure) ─────────
-    top_vals_list = top_box_spec.get("values", []) if top_box_spec else []
-    total_percents: list[float] = []
-    for res in results:
-        freq_by_label = {f.label: f.percent for f in res.frequencies}
-        tp = float(_sum_box(freq_by_label, top_vals_list)) if top_vals_list else 0.0
-        total_percents.append(tp)
 
     chart_buf = chart_styles.render_stacked_bar(
         row_labels, segments, colors=seg_colors,
@@ -665,26 +645,19 @@ def add_grid_slide(
     # ── Annotation panel ──────────────────────────────────────────────────────
     if annot_lines:
         # Try template placeholder idx=19 first (annotation area on right)
-        ph = _fill_placeholder(slide, 19, annot_lines[0],
-                               font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
+        ph = _fill_placeholder(slide, 19, annot_lines[0])
         if ph and len(annot_lines) > 1:
             tf = ph.text_frame
             for line in annot_lines[1:]:
                 p2 = tf.add_paragraph()
-                run = p2.add_run()
-                run.text = line
-                run.font.name = theme.FONT_FACE
-                run.font.size = Pt(theme.FONT_BODY)
-                run.font.color.rgb = _rgb(theme.GRAY_DARK)
+                p2.add_run().text = line
         if not ph:
             _add_multiline_textbox(
                 slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
                 annot_lines, font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
 
-    # Base: use template placeholder idx=22 if available, else manual footer
-    if not _fill_placeholder(slide, 22, base_note,
-                             font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK,
-                             italic=True):
+    # Base: Section Header layout uses idx=24 for footer (idx=22 is a stat slot)
+    if not _fill_placeholder(slide, 24, base_note):
         _add_footer(slide, base_note, page_num)
     else:
         if page_num is not None:
