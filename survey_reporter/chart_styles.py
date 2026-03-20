@@ -8,6 +8,8 @@ from typing import List
 
 import matplotlib
 matplotlib.use("Agg")
+# Use Liberation Sans as the chart font (closest system match to DM Sans)
+matplotlib.rcParams['font.family'] = 'Liberation Sans'
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -220,9 +222,9 @@ def render_stacked_bar(
         axis_left = GRID_AXIS_LEFT
     if axis_bottom is None:
         axis_bottom = GRID_AXIS_BOTTOM
-    # Reserve extra bottom margin when embedding the legend
+    # Reserve extra bottom margin when embedding the legend (2 rows of items)
     if legend_spec:
-        axis_bottom = max(axis_bottom, 0.14)
+        axis_bottom = max(axis_bottom, 0.20)
 
     n_rows = len(row_labels)
     wrapped_labels = [_wrap_label(lbl) for lbl in row_labels]
@@ -335,18 +337,20 @@ def render_stacked_bar(
                 h = mpatches.Patch(facecolor=_hex_to_rgb(clr), label=lbl)
             handles.append(h)
         ax_center = (axis_left + AXIS_RIGHT) / 2
+        # Limit columns so items wrap to 2 rows rather than getting clipped
+        ncols = min(len(handles), max(3, len(handles) // 2 + len(handles) % 2))
         fig.legend(
             handles=handles,
             loc="lower center",
-            bbox_to_anchor=(ax_center, 0.005),
+            bbox_to_anchor=(ax_center, 0.01),
             bbox_transform=fig.transFigure,
-            ncol=min(len(handles), 6),
+            ncol=ncols,
             fontsize=9,
             frameon=False,
             handlelength=1.2,
             handleheight=0.8,
             borderpad=0,
-            columnspacing=0.8,
+            columnspacing=0.7,
         )
 
     buf = io.BytesIO()

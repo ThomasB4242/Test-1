@@ -54,6 +54,18 @@ data = {
         for _ in range(N)
     ],
 
+    # Grid: 10 extended attitude statements
+    "att_urgent":     [weighted([1,2,3,4,5],[4, 8,15,38,35]) for _ in range(N)],
+    "att_economy":    [weighted([1,2,3,4,5],[10,18,25,27,20]) for _ in range(N)],
+    "att_youth":      [weighted([1,2,3,4,5],[5, 9,22,36,28]) for _ in range(N)],
+    "att_media":      [weighted([1,2,3,4,5],[12,20,28,25,15]) for _ in range(N)],
+    "att_science":    [weighted([1,2,3,4,5],[4, 7,18,37,34]) for _ in range(N)],
+    "att_personal":   [weighted([1,2,3,4,5],[8,14,24,32,22]) for _ in range(N)],
+    "att_costliving": [weighted([1,2,3,4,5],[15,22,28,22,13]) for _ in range(N)],
+    "att_future":     [weighted([1,2,3,4,5],[5,10,20,35,30]) for _ in range(N)],
+    "att_council":    [weighted([1,2,3,4,5],[9,16,26,30,19]) for _ in range(N)],
+    "att_trust":      [weighted([1,2,3,4,5],[18,25,24,20,13]) for _ in range(N)],
+
     # Region (demographic)
     "region": [random.choice([1, 2, 3, 4]) for _ in range(N)],
 
@@ -80,6 +92,16 @@ variable_labels = {
     "stmt_community": "This issue has a direct impact on everyday people in our community.",
     "stmt_govt_role": "Government must take a stronger leadership role on this issue.",
     "stmt_local_action": "Local action can make a meaningful difference on this issue.",
+    "att_urgent":     "This issue needs to be addressed urgently.",
+    "att_economy":    "Addressing this issue will benefit the economy.",
+    "att_youth":      "Future generations will be most affected by this issue.",
+    "att_media":      "The media gives this issue the attention it deserves.",
+    "att_science":    "The scientific evidence on this issue is clear.",
+    "att_personal":   "This issue affects me and my family personally.",
+    "att_costliving": "Addressing this issue would increase the cost of living.",
+    "att_future":     "I am optimistic we can solve this issue.",
+    "att_council":    "Local councils should have a greater role in addressing this issue.",
+    "att_trust":      "I trust the government to make the right decisions on this issue.",
     "region":         "Which region are you based in?",
     "age_group":      "What is your age group?",
 }
@@ -106,6 +128,16 @@ value_labels = {
     "stmt_community":    agree_5,
     "stmt_govt_role":    agree_5,
     "stmt_local_action": agree_5,
+    "att_urgent":     agree_5,
+    "att_economy":    agree_5,
+    "att_youth":      agree_5,
+    "att_media":      agree_5,
+    "att_science":    agree_5,
+    "att_personal":   agree_5,
+    "att_costliving": agree_5,
+    "att_future":     agree_5,
+    "att_council":    agree_5,
+    "att_trust":      agree_5,
     "region":    {1: "Metro", 2: "Regional", 3: "Rural", 4: "Remote"},
     "age_group": {1: "18–24", 2: "25–34", 3: "35–44", 4: "45–54", 5: "55+"},
 }

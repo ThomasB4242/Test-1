@@ -499,10 +499,10 @@ def add_chart_slide(
     if result is not None and result.type == "categorical" and chart_type == "bar" and n_bars > 0:
         freq_by_label = {f.label: f.percent for f in result.frequencies}
 
-        # Bar height in slide inches — size circle slightly larger than bar
+        # Bar height in slide inches — size circle to be clearly readable
         ax_h = (chart_styles.AXIS_TOP - chart_styles.AXIS_BOTTOM) * ch
         bar_h_slide = 0.60 * ax_h / max(n_bars, 1)
-        r = max(0.22, min(0.50, bar_h_slide * 0.65))
+        r = max(0.28, min(0.60, bar_h_slide * 0.85))
 
         # x-axis scale from render_simple_bar
         xlim_max = max(percents_t2b) * 1.12 + 3 if percents_t2b else 100.0
@@ -523,7 +523,7 @@ def add_chart_slide(
                 pct = _sum_box(freq_by_label, top_box_spec.get("values", []))
                 # x = just beyond end of the longest bar in the set
                 max_bar = max((freq_by_label.get(lbl, 0) for lbl in top_vals_set), default=0)
-                cx = _circle_cx_simple(max_bar, offset=r * 0.35)
+                cx = _circle_cx_simple(max_bar, offset=r * 1.15)
                 _draw_circle_badge(slide, cx, cy, r, theme.TEAL_MID,
                                    pct, top_box_spec.get("label", ""))
 
@@ -535,7 +535,7 @@ def add_chart_slide(
                     sum(idxs) / len(idxs), n_bars, ct, ch)
                 pct = _sum_box(freq_by_label, bottom_box_spec.get("values", []))
                 max_bar = max((freq_by_label.get(lbl, 0) for lbl in bot_vals_set), default=0)
-                cx = _circle_cx_simple(max_bar, offset=r * 0.90 * 0.35)
+                cx = _circle_cx_simple(max_bar, offset=r * 0.90 * 1.15)
                 _draw_circle_badge(slide, cx, cy, r * 0.90, theme.CORAL,
                                    pct, bottom_box_spec.get("label", ""))
 

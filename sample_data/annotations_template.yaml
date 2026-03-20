@@ -163,6 +163,56 @@ slides:
       - "– Metro residents (XX%)"
     base: "Base: all respondents (n=200)"
 
+  # ── Grid: 10 extended attitude statements ─────────────────────────────────
+  - type: grid
+    variables:
+      - att_urgent
+      - att_science
+      - att_future
+      - att_personal
+      - att_youth
+      - att_council
+      - att_economy
+      - att_personal
+      - att_media
+      - att_trust
+    heading: "Attitudes — broader community views"
+    question: "How strongly do you agree or disagree with each of the following statements? (%)"
+    scale_order:
+      - "Strongly agree"
+      - "Agree"
+      - "Neither agree nor disagree"
+      - "Disagree"
+      - "Strongly disagree"
+    top_box:
+      label: "Total agree"
+      values:
+        - "Strongly agree"
+        - "Agree"
+    bottom_box:
+      label: "Total disagree"
+      values:
+        - "Disagree"
+        - "Strongly disagree"
+    row_labels:
+      - "This issue needs to be addressed urgently"
+      - "The scientific evidence on this issue is clear"
+      - "I am optimistic we can solve this issue"
+      - "This issue affects me and my family personally"
+      - "Future generations will be most affected"
+      - "Local councils should have a greater role"
+      - "Addressing this issue will benefit the economy"
+      - "This issue affects me and my family personally"
+      - "The media gives this issue the attention it deserves"
+      - "I trust the government to make the right decisions"
+    annotations:
+      - "Urgency and scientific clarity are"
+      - "most agreed-with statements."
+      - ""
+      - "Trust and media coverage attract"
+      - "more scepticism."
+    base: "Base: all respondents (n=200)"
+
   # ── Section divider ───────────────────────────────────────────────────────
   - type: section
     title: "Demographics"
