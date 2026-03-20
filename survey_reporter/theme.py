@@ -21,10 +21,10 @@ SLIDE_W = 13.33
 SLIDE_H = 7.5
 
 # Layout zones as (left, top, width, height) in inches
-# Heading/question sit in the clean white area above the thin rule (y≈1.10)
-# Master logo occupies (0.21", 6.85") 0.86"×0.40" — footer stays above it
+# Heading/question sit in the clean white area; thin teal rule at y≈1.10
+# Master logo occupies (0.21", 6.85") 0.86"×0.40" — footer sits beside it
 LOGO_BOX     = (0.27, 0.08, 1.87, 0.42)
-PAGE_NUM_BOX = (12.40, 6.80, 0.67, 0.30)
+PAGE_NUM_BOX = (12.63, 6.80, 0.30, 0.30)   # square → renders as circle
 HEADING_BOX  = (0.34, 0.22, 12.65, 0.82)
 QUESTION_BOX = (0.34, 1.14, 9.00, 0.38)
 CHART_BOX    = (0.34, 1.58, 7.33, 5.10)

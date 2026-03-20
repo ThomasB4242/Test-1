@@ -227,9 +227,12 @@ def _add_footer(slide, base_note: str, page_num: int | None):
     _add_textbox(slide, theme.FOOTER_BOX, base_note,
                  font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK, italic=True)
     if page_num is not None:
-        _add_textbox(slide, theme.PAGE_NUM_BOX, str(page_num),
-                     font_size=theme.FONT_FOOTER, color=theme.GRAY_DARK,
-                     align=PP_ALIGN.RIGHT)
+        pb = theme.PAGE_NUM_BOX
+        _add_oval(slide, pb, theme.TEAL_DARK)
+        l, t, w, h = pb
+        _add_textbox(slide, (l, t + h * 0.12, w, h * 0.76), str(page_num),
+                     font_size=10, color=theme.WHITE,
+                     bold=True, align=PP_ALIGN.CENTER)
 
 
 def _add_logo(slide, logo_path: str | None):
@@ -362,7 +365,6 @@ def add_chart_slide(
     logo_path: str | None = None,
 ):
     slide = _blank_slide(prs)
-    _add_heading_rule(slide)
     _add_logo(slide, logo_path)
 
     heading         = spec.get("heading", result.label if result else "")
@@ -374,7 +376,8 @@ def add_chart_slide(
     bottom_box_spec = spec.get("bottom_box")
 
     _add_textbox(slide, theme.HEADING_BOX, heading,
-                 font_size=theme.FONT_HEADING, color=theme.CORAL, bold=True)
+                 font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
+    _add_heading_rule(slide)
     if question:
         _add_textbox(slide, theme.QUESTION_BOX, question,
                      font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
@@ -392,9 +395,10 @@ def add_chart_slide(
             row_labels = [""]
             segments   = [{"label": f.label, "values": [f.percent]} for f in freqs]
             colors     = theme.LIKERT_COLORS[:len(segments)]
-            ch         = _chart_h_for_n(1)
+            ch         = max(_chart_h_for_n(1), 2.00)
             chart_buf  = chart_styles.render_stacked_bar(
-                row_labels, segments, colors=colors, fig_h=ch)
+                row_labels, segments, colors=colors, fig_h=ch,
+                axis_left=0.05)  # no row label — use full width
             n_bars = 1
             labels_t2b = [""]
         else:
@@ -467,7 +471,6 @@ def add_grid_slide(
     Only the number is shown in the circle; the legend explains the colour.
     """
     slide = _blank_slide(prs)
-    _add_heading_rule(slide)
     _add_logo(slide, logo_path)
 
     heading             = spec.get("heading", "")
@@ -480,7 +483,8 @@ def add_grid_slide(
     row_label_overrides = spec.get("row_labels", [])
 
     _add_textbox(slide, theme.HEADING_BOX, heading,
-                 font_size=theme.FONT_HEADING, color=theme.CORAL, bold=True)
+                 font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
+    _add_heading_rule(slide)
     if question:
         _add_textbox(slide, theme.QUESTION_BOX, question,
                      font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
