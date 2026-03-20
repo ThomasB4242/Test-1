@@ -380,13 +380,16 @@ _ANNOT_L  = 6.30    # annotation text left (single-bar layout)
 _ANNOT_W  = 12.93 - _ANNOT_L  # ~6.63"
 
 # Grid layout — wider chart, annotations pushed further right
+# Strip on layout '3_Title Slide' runs y=2.23" to y=6.58" (h=4.35")
+_GRID_CHART_T  = 2.35   # inside the mint strip (strip starts 2.23")
 _GRID_CHART_W  = 9.00   # grid stacked-bar image width
-_GRID_ANNOT_L  = 9.50   # grid annotation left
+_GRID_CHART_MAX_H = 3.70  # cap height so chart+legend fits in strip
+_GRID_ANNOT_L  = 9.50   # grid annotation left (just past chart)
 _GRID_ANNOT_W  = 12.93 - _GRID_ANNOT_L  # ~3.43"
 
 # Template layout names
-_LAYOUT_SINGLE_BAR = "title slide"       # Layout 1  — diagonal right background
-_LAYOUT_GRID       = "section header"    # Layout 6  — coloured horizontal strip
+_LAYOUT_SINGLE_BAR = "title slide"       # Layout 0  — diagonal right background
+_LAYOUT_GRID       = "3_title slide"     # Layout 11 — full-width mint horizontal strip
 
 
 # ---------------------------------------------------------------------------
@@ -480,24 +483,27 @@ def add_chart_slide(
             return cl + x_frac * cw
 
         if top_box_spec:
-            idxs = [i for i, lbl in enumerate(labels_t2b)
-                    if lbl in set(top_box_spec.get("values", []))]
+            top_vals_set = set(top_box_spec.get("values", []))
+            idxs = [i for i, lbl in enumerate(labels_t2b) if lbl in top_vals_set]
             if idxs:
                 cy  = _bar_circle_center_y(
                     sum(idxs) / len(idxs), n_bars, ct, ch)
                 pct = _sum_box(freq_by_label, top_box_spec.get("values", []))
-                cx  = _circle_cx_simple(pct)
+                # x = end of the longest bar in the set (sum may exceed axis max)
+                max_bar = max((freq_by_label.get(lbl, 0) for lbl in top_vals_set), default=0)
+                cx = _circle_cx_simple(max_bar)
                 _draw_circle_badge(slide, cx, cy, r, theme.TEAL_MID,
                                    pct, top_box_spec.get("label", ""))
 
         if bottom_box_spec:
-            idxs = [i for i, lbl in enumerate(labels_t2b)
-                    if lbl in set(bottom_box_spec.get("values", []))]
+            bot_vals_set = set(bottom_box_spec.get("values", []))
+            idxs = [i for i, lbl in enumerate(labels_t2b) if lbl in bot_vals_set]
             if idxs:
                 cy  = _bar_circle_center_y(
                     sum(idxs) / len(idxs), n_bars, ct, ch)
                 pct = _sum_box(freq_by_label, bottom_box_spec.get("values", []))
-                cx  = _circle_cx_simple(pct)
+                max_bar = max((freq_by_label.get(lbl, 0) for lbl in bot_vals_set), default=0)
+                cx = _circle_cx_simple(max_bar)
                 _draw_circle_badge(slide, cx, cy, r * 0.85, theme.CORAL,
                                    pct, bottom_box_spec.get("label", ""))
 
@@ -538,9 +544,8 @@ def add_grid_slide(
     Total circles are rendered inside the matplotlib figure.
     Rows are sorted descending by top-box total percentage.
     """
-    # Use the 'Section Header' layout — coloured strip, white top and bottom
-    # Try the un-prefixed variant first, then the '1_' prefixed variant
-    slide = _layout_slide(prs, _LAYOUT_GRID, "1_section header")
+    # Use the '3_Title Slide' layout — full-width mint horizontal strip
+    slide = _layout_slide(prs, _LAYOUT_GRID)
     _add_logo(slide, logo_path)
 
     heading             = spec.get("heading", "")
@@ -595,9 +600,9 @@ def add_grid_slide(
         row_labels     = [l for _, _, l in sorted_triples]
 
     n_rows = len(results)
-    cl, ct = _CHART_L, _CHART_T
+    cl, ct = _CHART_L, _GRID_CHART_T
     cw     = _GRID_CHART_W
-    ch     = _chart_h_for_n(n_rows)
+    ch     = min(_GRID_CHART_MAX_H, _chart_h_for_n(n_rows))
 
     # Build segments
     segments: list[dict] = []
@@ -673,8 +678,8 @@ def add_grid_slide(
                 slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
                 annot_lines, font_size=theme.FONT_BODY, color=theme.GRAY_DARK)
 
-    # Base: Section Header layout uses idx=24 for footer (idx=22 is a stat slot)
-    if not _fill_placeholder(slide, 24, base_note):
+    # Base: layout '3_Title Slide' uses idx=22 for footer (at y=7.08")
+    if not _fill_placeholder(slide, 22, base_note):
         _add_footer(slide, base_note, page_num)
     else:
         if page_num is not None:
