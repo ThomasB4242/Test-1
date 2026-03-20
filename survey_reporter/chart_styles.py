@@ -122,6 +122,9 @@ def render_simple_bar(
         fig_w = CHART_FIG_W
 
     n = len(labels)
+    # Wrap long y-axis labels so they stay within the label area
+    wrapped_labels = [_wrap_label(lbl, 18) for lbl in labels]
+
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor("none")
     ax.set_facecolor("none")
@@ -152,7 +155,8 @@ def render_simple_bar(
                     fontsize=10, color=theme.GRAY_DARK, fontweight="bold", zorder=4)
 
     ax.set_yticks(list(range(n)))
-    ax.set_yticklabels(labels, fontsize=10, color=theme.GRAY_DARK)
+    ax.set_yticklabels(wrapped_labels, fontsize=10, color=theme.GRAY_DARK,
+                       linespacing=1.1)
     for lbl in ax.get_yticklabels():
         lbl.set_fontweight("bold")
     ax.set_ylim(-0.55, n - 0.45)

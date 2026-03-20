@@ -286,31 +286,52 @@ def _draw_circle_badge(slide, cx: float, cy: float, r: float,
                        label: str = "", show_label: bool = True):
     """Draw a filled circle centred at (cx, cy) with radius r (inches).
 
-    When show_label=False the percentage number is centred in the circle
-    and no sub-label is drawn (use a legend entry to explain the circle).
+    The percentage number and % sign use different font sizes (% is smaller).
+    Label text is auto-sized to fit within the circle width.
     """
     l, t, d = cx - r, cy - r, r * 2
     _add_oval(slide, (l, t, d, d), fill_color)
 
-    # Scale font size with circle radius
-    pct_fs    = max(9, int(r * 52))
-    label_fs  = max(7, int(r * 28))
+    # Scale font sizes with circle radius; % sign is noticeably smaller
+    num_fs   = max(10, int(r * 62))   # main number
+    pct_fs   = max(7,  int(r * 40))   # % suffix — smaller
+
+    # Auto-size the label so it fits within the circle diameter
+    label_fs_base = max(7, int(r * 32))
+    if label:
+        circle_pt_w = d * 72                              # circle width in pts
+        chars_fit   = max(3, int(circle_pt_w / (label_fs_base * 0.62)))
+        label_fs    = label_fs_base if len(label) <= chars_fit else max(
+            6, int(label_fs_base * chars_fit / len(label))
+        )
+    else:
+        label_fs = label_fs_base
+
+    def _pct_textbox(top_frac, h_frac):
+        """Add a textbox with number + % in two runs at different sizes."""
+        txBox = slide.shapes.add_textbox(
+            Inches(l), Inches(t + d * top_frac), Inches(d), Inches(d * h_frac)
+        )
+        tf = txBox.text_frame
+        tf.word_wrap = False
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        for txt, fs in ((str(pct), num_fs), ("%", pct_fs)):
+            run = p.add_run()
+            run.text = txt
+            run.font.name = theme.FONT_FACE
+            run.font.size = Pt(fs)
+            run.font.color.rgb = _rgb(theme.WHITE)
+            run.font.bold = True
 
     if show_label and label:
-        _add_textbox(slide, (l, t + d * 0.10, d, d * 0.52),
-                     f"{pct}%",
-                     font_size=pct_fs, color=theme.WHITE,
-                     bold=True, align=PP_ALIGN.CENTER)
-        _add_textbox(slide, (l, t + d * 0.58, d, d * 0.36),
-                     label,
-                     font_size=label_fs, color=theme.WHITE,
+        _pct_textbox(0.06, 0.52)
+        _add_textbox(slide, (l, t + d * 0.56, d, d * 0.38),
+                     label, font_size=label_fs, color=theme.WHITE,
                      align=PP_ALIGN.CENTER)
     else:
         # Number only — vertically centred
-        _add_textbox(slide, (l, t + d * 0.22, d, d * 0.56),
-                     f"{pct}%",
-                     font_size=pct_fs, color=theme.WHITE,
-                     bold=True, align=PP_ALIGN.CENTER)
+        _pct_textbox(0.18, 0.60)
 
 
 def _sum_box(freq_by_label: dict, values: list[str]) -> int:
@@ -383,11 +404,12 @@ _ANNOT_FONT = 14                  # user-requested font size for annotations
 
 # Grid layout — wider chart, annotations pushed further right
 # Strip on layout '3_Title Slide' runs y=2.23" to y=6.58" (h=4.35")
-_GRID_CHART_T  = 2.35   # inside the mint strip (strip starts 2.23")
-_GRID_CHART_W  = 9.00   # grid stacked-bar image width
-_GRID_CHART_MAX_H = 3.70  # cap height so chart+legend fits in strip
-_GRID_ANNOT_L  = 9.50   # grid annotation left (just past chart)
-_GRID_ANNOT_W  = 12.93 - _GRID_ANNOT_L  # ~3.43"
+_GRID_MINT_TOP     = 2.23   # top of the mint-coloured strip
+_GRID_MINT_BOTTOM  = 6.58   # bottom of the mint-coloured strip
+_GRID_CHART_W      = 9.00   # grid stacked-bar image width
+_GRID_CHART_MAX_H  = 4.15   # cap height so chart+legend fits in strip
+_GRID_ANNOT_L      = 9.50   # grid annotation left (just past chart)
+_GRID_ANNOT_W      = 12.93 - _GRID_ANNOT_L  # ~3.43"
 
 # Template layout names
 _LAYOUT_SINGLE_BAR = "title slide"       # Layout 0  — diagonal right background
@@ -477,20 +499,20 @@ def add_chart_slide(
     if result is not None and result.type == "categorical" and chart_type == "bar" and n_bars > 0:
         freq_by_label = {f.label: f.percent for f in result.frequencies}
 
-        # Bar height in slide inches — size circle to match
+        # Bar height in slide inches — size circle slightly larger than bar
         ax_h = (chart_styles.AXIS_TOP - chart_styles.AXIS_BOTTOM) * ch
         bar_h_slide = 0.60 * ax_h / max(n_bars, 1)
-        r = max(0.18, min(0.45, bar_h_slide * 0.55))
+        r = max(0.22, min(0.50, bar_h_slide * 0.65))
 
         # x-axis scale from render_simple_bar
         xlim_max = max(percents_t2b) * 1.12 + 3 if percents_t2b else 100.0
 
-        def _circle_cx_simple(pct_val: float) -> float:
-            """Map a data value to slide x-coordinate for the simple bar chart."""
+        def _circle_cx_simple(pct_val: float, offset: float = 0.0) -> float:
+            """Map a data value to slide x-coordinate, with optional inch offset."""
             x_frac = chart_styles.AXIS_LEFT + (pct_val / xlim_max) * (
                 chart_styles.AXIS_RIGHT - chart_styles.AXIS_LEFT
             )
-            return cl + x_frac * cw
+            return cl + x_frac * cw + offset
 
         if top_box_spec:
             top_vals_set = set(top_box_spec.get("values", []))
@@ -499,9 +521,9 @@ def add_chart_slide(
                 cy  = _bar_circle_center_y(
                     sum(idxs) / len(idxs), n_bars, ct, ch)
                 pct = _sum_box(freq_by_label, top_box_spec.get("values", []))
-                # x = end of the longest bar in the set (sum may exceed axis max)
+                # x = just beyond end of the longest bar in the set
                 max_bar = max((freq_by_label.get(lbl, 0) for lbl in top_vals_set), default=0)
-                cx = _circle_cx_simple(max_bar)
+                cx = _circle_cx_simple(max_bar, offset=r * 0.35)
                 _draw_circle_badge(slide, cx, cy, r, theme.TEAL_MID,
                                    pct, top_box_spec.get("label", ""))
 
@@ -513,8 +535,8 @@ def add_chart_slide(
                     sum(idxs) / len(idxs), n_bars, ct, ch)
                 pct = _sum_box(freq_by_label, bottom_box_spec.get("values", []))
                 max_bar = max((freq_by_label.get(lbl, 0) for lbl in bot_vals_set), default=0)
-                cx = _circle_cx_simple(max_bar)
-                _draw_circle_badge(slide, cx, cy, r * 0.85, theme.CORAL,
+                cx = _circle_cx_simple(max_bar, offset=r * 0.90 * 0.35)
+                _draw_circle_badge(slide, cx, cy, r * 0.90, theme.CORAL,
                                    pct, bottom_box_spec.get("label", ""))
 
     # ── Annotation panel — positioned in the right teal panel ────────────────
@@ -610,9 +632,11 @@ def add_grid_slide(
         row_labels     = [l for _, _, l in sorted_triples]
 
     n_rows = len(results)
-    cl, ct = _CHART_L, _GRID_CHART_T
+    cl     = _CHART_L
     cw     = _GRID_CHART_W
     ch     = min(_GRID_CHART_MAX_H, _chart_h_for_n(n_rows))
+    # Vertically centre the chart within the mint-coloured strip
+    ct     = (_GRID_MINT_TOP + _GRID_MINT_BOTTOM - ch) / 2
 
     # Build segments
     segments: list[dict] = []
