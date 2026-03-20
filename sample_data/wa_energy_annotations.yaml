@@ -54,6 +54,11 @@ slides:
       values:
         - "Very bad"
         - "Moderately bad"
+    bottom_box:
+      label: "Not bad"
+      values:
+        - "Not that bad"
+        - "Not at all bad"
     row_labels:
       - "Coal"
       - "Oil, diesel & petrol"
@@ -99,7 +104,7 @@ slides:
   - type: section
     title: "Renewable Energy Attitudes"
 
-  # ── Grid Q3a: RE outcomes — top 7 ───────────────────────────────────────────
+  # ── Grid Q3: RE outcomes — all 13 ───────────────────────────────────────────
   - type: grid
     variables:
       - re_outcome_jobs
@@ -109,7 +114,13 @@ slides:
       - re_outcome_reliability
       - re_outcome_living_std
       - re_outcome_economy
-    heading: "Likely outcomes of more renewable energy (1 of 2)"
+      - re_outcome_businesses
+      - re_outcome_public_svcs
+      - re_outcome_climate_fund
+      - re_outcome_power_prices
+      - re_outcome_cost_living
+      - re_outcome_debt
+    heading: "Likely outcomes of more renewable energy"
     question: "How likely do you think these outcomes would be if WA used more renewable energy? (%)"
     scale_order:
       - "Very likely"
@@ -130,62 +141,27 @@ slides:
       - "Better energy system reliability"
       - "Maintaining living standards"
       - "Delivering a strong economy"
-    annotation_font: 11
-    annotations:
-      - "Optimism is broad — driven mainly by"
-      - "age and political alignment."
-      - ""
-      - "Strongest optimism among 30–44 year olds:"
-      - {text: "  ↑ 30–44yo — 73–80% total likely", color: teal}
-      - {text: "  ↓ 60+ — 57–68% total likely", color: coral}
-      - ""
-      - "Solar/battery owners more optimistic:"
-      - {text: "  ↑ Solar owners — ~75–79%", color: teal}
-      - {text: "  ↓ No solar — ~56–66%", color: coral}
-    base: "Base: all respondents (n=1,011)"
-
-  # ── Grid Q3b: RE outcomes — bottom 6 ────────────────────────────────────────
-  - type: grid
-    variables:
-      - re_outcome_businesses
-      - re_outcome_public_svcs
-      - re_outcome_climate_fund
-      - re_outcome_power_prices
-      - re_outcome_cost_living
-      - re_outcome_debt
-    heading: "Likely outcomes of more renewable energy (2 of 2)"
-    question: "How likely do you think these outcomes would be if WA used more renewable energy? (%)"
-    scale_order:
-      - "Very likely"
-      - "Somewhat likely"
-      - "Unsure"
-      - "Somewhat unlikely"
-      - "Very unlikely"
-    top_box:
-      label: "Total likely"
-      values:
-        - "Very likely"
-        - "Somewhat likely"
-    row_labels:
       - "More certainty for businesses"
       - "Funding public services"
       - "Contributing to a climate resilience fund"
       - "Lower power prices"
       - "Reducing the cost of living"
       - "Paying off government debt"
-    annotation_font: 11
+    annotation_font: 10
     annotations:
-      - "Power prices & cost of living attract"
-      - "greatest scepticism — but still majority"
-      - "optimism (57–59% total likely)."
+      - "Optimism is broad — driven mainly by"
+      - "age and political alignment."
       - ""
-      - "Political vote is the strongest divider:"
+      - "Best outcomes: jobs, industries,"
+      - "infrastructure, environment (70–73%)."
+      - ""
+      - {text: "  ↑ 30–44yo — 73–80% total likely", color: teal}
+      - {text: "  ↓ 60+ — 55–68% total likely", color: coral}
+      - ""
+      - "Power prices & cost of living attract"
+      - "most scepticism (57–59%)."
       - {text: "  ↑ WA Labor — 65–67% likely", color: teal}
       - {text: "  ↓ One Nation — 29–40% likely", color: coral}
-      - ""
-      - "Education gradient:"
-      - {text: "  ↑ University — 62–68% likely", color: teal}
-      - {text: "  ↓ Secondary/lower — 48–52% likely", color: coral}
     base: "Base: all respondents (n=1,011)"
 
   # ── Chart Q5: Support for RE target ─────────────────────────────────────────
@@ -242,12 +218,11 @@ slides:
       - {text: "  ↓ Retired — 21%", color: coral}
     base: "Base: respondents without solar (n=473)"
 
-  # ── Chart Q6: Reasons for supporting a target ───────────────────────────────
-  - type: chart
+  # ── Table Q6: Reasons for supporting a target ───────────────────────────────
+  - type: table
     variable: re_target_reasons
     heading: "Main reason for supporting a renewable energy target"
     question: "What is the main reason for supporting a target? (%, among supporters)"
-    chart_type: bar
     annotation_font: 12
     annotations:
       - "Practical momentum and values-based"

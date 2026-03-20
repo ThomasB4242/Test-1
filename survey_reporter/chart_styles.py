@@ -8,8 +8,15 @@ from typing import List
 
 import matplotlib
 matplotlib.use("Agg")
-# Use Liberation Sans as the chart font (closest system match to DM Sans)
-matplotlib.rcParams['font.family'] = 'Liberation Sans'
+import matplotlib.font_manager as _fm
+# Register DM Sans if the TTF is installed, otherwise fall back to Liberation Sans
+_DM_SANS_PATH = "/usr/local/share/fonts/dmsans/DMSans[opsz,wght].ttf"
+if __import__("pathlib").Path(_DM_SANS_PATH).exists():
+    _fm.fontManager.addfont(_DM_SANS_PATH)
+    _DM_AVAILABLE = "DM Sans" in [f.name for f in _fm.fontManager.ttflist]
+else:
+    _DM_AVAILABLE = False
+matplotlib.rcParams['font.family'] = 'DM Sans' if _DM_AVAILABLE else 'Liberation Sans'
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -28,12 +35,12 @@ CHART_DPI: int = 150
 
 # Subplot margins (fractions of figure; matplotlib measures from bottom).
 # Exported so slide_builder.py can map bar positions to slide coordinates.
-AXIS_LEFT        = 0.30    # simple bar — short response labels
-GRID_AXIS_LEFT   = 0.40    # grid / stacked — longer statement labels
+AXIS_LEFT        = 0.38    # simple bar — short response labels
+GRID_AXIS_LEFT   = 0.48    # grid / stacked — longer statement labels
 AXIS_RIGHT       = 0.90
 AXIS_TOP         = 0.95    # leave a sliver at top
 AXIS_BOTTOM      = 0.03    # simple bar — no x-axis labels
-GRID_AXIS_BOTTOM = 0.05    # grid — no x-axis labels needed (was 0.12)
+GRID_AXIS_BOTTOM = 0.05    # grid — no x-axis labels needed
 
 
 def _hex_to_rgb(hex_color: str):
@@ -125,7 +132,7 @@ def render_simple_bar(
 
     n = len(labels)
     # Wrap long y-axis labels so they stay within the label area
-    wrapped_labels = [_wrap_label(lbl, 18) for lbl in labels]
+    wrapped_labels = [_wrap_label(lbl, 22) for lbl in labels]
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor("none")
@@ -222,13 +229,15 @@ def render_stacked_bar(
         axis_left = GRID_AXIS_LEFT
     if axis_bottom is None:
         axis_bottom = GRID_AXIS_BOTTOM
-    # Reserve extra bottom margin when embedding the legend (2 rows of items)
+    # Reserve extra bottom margin when embedding the legend.
+    # Use a fixed absolute height (~0.70") so it doesn't eat into tall charts.
     if legend_spec:
-        axis_bottom = max(axis_bottom, 0.20)
+        _legend_abs_h = 0.70  # inches
+        axis_bottom = max(axis_bottom, _legend_abs_h / fig_h)
 
     n_rows = len(row_labels)
-    wrapped_labels = [_wrap_label(lbl) for lbl in row_labels]
-    label_fs = 9 if n_rows <= 6 else 8
+    wrapped_labels = [_wrap_label(lbl, 36) for lbl in row_labels]
+    label_fs = 10 if n_rows <= 5 else (9 if n_rows <= 9 else 8)
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor("none")
@@ -345,10 +354,10 @@ def render_stacked_bar(
             bbox_to_anchor=(ax_center, 0.01),
             bbox_transform=fig.transFigure,
             ncol=ncols,
-            fontsize=9,
+            fontsize=11,
             frameon=False,
             handlelength=1.2,
-            handleheight=0.8,
+            handleheight=0.9,
             borderpad=0,
             columnspacing=0.7,
         )

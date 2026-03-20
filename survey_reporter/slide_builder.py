@@ -424,7 +424,7 @@ _ANNOT_FONT = 14                  # user-requested font size for annotations
 _GRID_MINT_TOP     = 2.23   # top of the mint-coloured strip
 _GRID_MINT_BOTTOM  = 6.58   # bottom of the mint-coloured strip
 _GRID_CHART_W      = 9.00   # grid stacked-bar image width
-_GRID_CHART_MAX_H  = 4.15   # cap height so chart+legend fits in strip
+_GRID_CHART_MAX_H  = 4.30   # cap height so chart+legend fits in strip
 _GRID_ANNOT_L      = 9.50   # grid annotation left (just past chart)
 _GRID_ANNOT_W      = 12.93 - _GRID_ANNOT_L  # ~3.43"
 
@@ -726,6 +726,130 @@ def add_grid_slide(
 
 
 # ---------------------------------------------------------------------------
+# Table slide  (coded open-end / ranked list — label + %)
+# ---------------------------------------------------------------------------
+
+def add_table_slide(
+    prs: Presentation,
+    spec: dict,
+    result: QuestionResult | None,
+    page_num: int | None = None,
+    logo_path: str | None = None,
+):
+    """Two-column table slide: response label | percentage.
+
+    Rows are displayed in the order stored on *result* (already sorted by the
+    caller — typically descending %).  Uses the Title Slide layout so the
+    diagonal teal right-panel provides the annotation sidebar.
+    """
+    from pptx.util import Pt, Inches
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from lxml import etree
+
+    slide = _layout_slide(prs, _LAYOUT_SINGLE_BAR)
+    _add_logo(slide, logo_path)
+
+    heading     = spec.get("heading", result.label if result else "")
+    question    = spec.get("question", "")
+    annot_lines = spec.get("annotations", [])
+    base_note   = spec.get("base", "")
+
+    if not _fill_placeholder(slide, 0, heading):
+        _add_textbox(slide, theme.HEADING_BOX, heading,
+                     font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
+        _add_heading_rule(slide)
+    if question:
+        if not _fill_placeholder(slide, 21, question):
+            _add_textbox(slide, theme.QUESTION_BOX, question,
+                         font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
+
+    if result is not None and result.frequencies:
+        # Show in original (descending %) order — reversed from stored order
+        freqs = list(reversed(result.frequencies))
+        n_rows = len(freqs)
+        max_pct = max(f.percent for f in freqs) if freqs else 1.0
+
+        # Table geometry
+        tbl_l = _CHART_L
+        tbl_t = _CHART_T
+        tbl_w = _CHART_W
+        row_h_in = min(0.38, (theme.SLIDE_H - tbl_t - 0.60) / max(n_rows + 1, 1))
+        tbl_h = row_h_in * (n_rows + 1)   # +1 for header row
+
+        from pptx.util import Emu
+        tbl_frame = slide.shapes.add_table(
+            n_rows + 1, 2,
+            Inches(tbl_l), Inches(tbl_t),
+            Inches(tbl_w), Inches(tbl_h),
+        )
+        tbl = tbl_frame.table
+
+        # Column widths: label takes 78%, pct takes 22%
+        tbl.columns[0].width = Inches(tbl_w * 0.78)
+        tbl.columns[1].width = Inches(tbl_w * 0.22)
+
+        def _cell_style(cell, text: str, font_size: int, bold: bool,
+                        fg: str, bg: str, align=PP_ALIGN.LEFT):
+            cell.text = ""
+            tf = cell.text_frame
+            tf.word_wrap = False
+            p = tf.paragraphs[0]
+            p.alignment = align
+            run = p.add_run()
+            run.text = text
+            run.font.name = theme.FONT_FACE
+            run.font.size = Pt(font_size)
+            run.font.bold = bold
+            run.font.color.rgb = _rgb(fg)
+            # Background fill via XML
+            tc = cell._tc
+            tcPr = tc.get_or_add_tcPr()
+            # Remove existing fills
+            for child in list(tcPr):
+                if child.tag.endswith('}solidFill') or child.tag.endswith('}noFill'):
+                    tcPr.remove(child)
+            ns = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+            solidFill = etree.SubElement(tcPr, f'{{{ns}}}solidFill')
+            srgbClr   = etree.SubElement(solidFill, f'{{{ns}}}srgbClr')
+            srgbClr.set('val', bg.lstrip('#'))
+
+        # Header row
+        _cell_style(tbl.cell(0, 0), "Response", 11, True, theme.WHITE, theme.TEAL_DARK)
+        _cell_style(tbl.cell(0, 1), "%", 11, True, theme.WHITE, theme.TEAL_DARK,
+                    align=PP_ALIGN.CENTER)
+
+        # Data rows: alternating white / very light teal
+        _ROW_ALT = "#E6F8F9"
+        for i, freq in enumerate(freqs):
+            bg = theme.WHITE if i % 2 == 0 else _ROW_ALT
+            # Highlight top row in slightly bolder teal text
+            fg_lbl = theme.TEAL_DARK if i == 0 else theme.GRAY_DARK
+            _cell_style(tbl.cell(i + 1, 0), freq.label, 10, (i == 0), fg_lbl, bg)
+            _cell_style(tbl.cell(i + 1, 1), f"{int(round(freq.percent))}%",
+                        10, True, theme.TEAL_DARK if freq.percent >= max_pct * 0.7 else theme.GRAY_DARK,
+                        bg, align=PP_ALIGN.CENTER)
+
+    # Annotation panel
+    if annot_lines:
+        annot_font = spec.get("annotation_font", _ANNOT_FONT)
+        _add_multiline_textbox(
+            slide, (_ANNOT_L, _CHART_T, _ANNOT_W, 4.5),
+            annot_lines, font_size=annot_font, color=theme.GRAY_DARK)
+
+    if not _fill_placeholder(slide, 22, base_note):
+        _add_footer(slide, base_note, page_num)
+    else:
+        if page_num is not None:
+            pb = theme.PAGE_NUM_BOX
+            _add_oval(slide, pb, theme.TEAL_DARK)
+            l, t, w, h = pb
+            _add_textbox(slide, (l, t + h * 0.12, w, h * 0.76), str(page_num),
+                         font_size=10, color=theme.WHITE,
+                         bold=True, align=PP_ALIGN.CENTER)
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -773,6 +897,12 @@ def build_pptx(
             ]
             add_grid_slide(prs, spec, grid_results,
                            page_num=page_num, logo_path=logo_path)
+            page_num += 1
+
+        elif slide_type == "table":
+            result = result_map.get(spec.get("variable", ""))
+            add_table_slide(prs, spec, result,
+                            page_num=page_num, logo_path=logo_path)
             page_num += 1
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

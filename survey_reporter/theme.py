@@ -12,8 +12,8 @@ WHITE      = "#FFFFFF"
 FONT_FACE  = "DM Sans"
 
 # Colour sequences for charts
-# Stacked bar: index 0 = most positive, last = unsure
-LIKERT_COLORS = [TEAL_DARK, TEAL_MID, SALMON, CORAL, GRAY_MID]
+# Stacked bar: index 0 = most positive → index 4 = most negative
+LIKERT_COLORS = [TEAL_DARK, TEAL_MID, GRAY_MID, SALMON, CORAL]
 BAR_COLOR = TEAL_MID     # simple horizontal bar
 
 # Slide dimensions (inches) — widescreen 13.33 × 7.5
