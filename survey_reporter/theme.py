@@ -1,19 +1,24 @@
 # Brand colours — matched to Blank.potm theme
-TEAL_DARK  = "#027F7C"   # accent1 — cover/divider backgrounds, darkest bar segment
-TEAL_MID   = "#00BDBB"   # accent2 — top-box circle, medium bar segment
-TEAL_LIGHT = "#9BEFEF"   # accent3 — lighter bar segment
-CORAL      = "#A32015"   # accent6 — headings, bottom-box circle, strongly-oppose bars
-SALMON     = "#FA8488"   # accent5 — somewhat-oppose bars
-GRAY_MID   = "#BCBEC0"   # unsure bars
-GRAY_DARK  = "#44546A"   # dk2 — body / annotation text
-WHITE      = "#FFFFFF"
+TEAL_DARK    = "#027F7C"   # accent1 — position 1 (strongest positive) bar segment
+TEAL_MID     = "#00BDBB"   # accent2 — combined top-box circle ONLY (not a bar segment)
+TEAL_LIGHT   = "#9BEFEF"   # accent3 — position 2 (moderate positive) bar segment
+PINK_LIGHT   = "#F5C5C5"   # position 4 (moderate negative) bar segment
+SALMON       = "#FA8488"   # accent5 — combined bottom-box circle ONLY (not a bar segment)
+CORAL        = "#A32015"   # accent6 — position 5 (strongest negative) bar segment; headings
+GRAY_NEUTRAL = "#B3B3B3"   # ~30% black tint — neutral / midpoint option
+GRAY_UNSURE  = "#8C8C8C"   # darker grey — unsure/DK when a neutral option also exists
+GRAY_MID     = "#BCBEC0"   # legacy grey — kept for non-chart UI elements
+GRAY_DARK    = "#44546A"   # dk2 — body / annotation text
+WHITE        = "#FFFFFF"
 
 # Template font (DM Sans from Blank.potm theme)
 FONT_FACE  = "DM Sans"
 
 # Colour sequences for charts
 # Stacked bar: index 0 = most positive → index 4 = most negative
-LIKERT_COLORS = [TEAL_DARK, TEAL_MID, GRAY_MID, SALMON, CORAL]
+# Positions: 1=TEAL_DARK, 2=TEAL_LIGHT, 3=GRAY_NEUTRAL, 4=PINK_LIGHT, 5=CORAL
+# TEAL_MID and SALMON are reserved for combined top/bottom-box circles respectively
+LIKERT_COLORS = [TEAL_DARK, TEAL_LIGHT, GRAY_NEUTRAL, PINK_LIGHT, CORAL]
 BAR_COLOR = TEAL_MID     # simple horizontal bar
 
 # Slide dimensions (inches) — widescreen 13.33 × 7.5

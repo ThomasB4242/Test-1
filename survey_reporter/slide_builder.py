@@ -30,8 +30,30 @@ def _rgb(hex_color: str) -> RGBColor:
 # Bar colour assignment
 # ---------------------------------------------------------------------------
 
-_TOP_COLORS = [theme.TEAL_DARK, theme.TEAL_MID, theme.TEAL_LIGHT]
-_BOT_COLORS = [theme.SALMON, theme.CORAL]
+# Individual segment colours (position 1→2 positive, position 4→5 negative).
+# TEAL_MID and SALMON are reserved for combined circles, NOT used as bar segments.
+_TOP_COLORS = [theme.TEAL_DARK, theme.TEAL_LIGHT]
+_BOT_COLORS = [theme.PINK_LIGHT, theme.CORAL]
+
+# Keyword sets for classifying residual (neither top nor bottom) segments
+_NEUTRAL_KW = {"neutral", "neither", "no idea", "no opinion", "middle", "no impact"}
+_UNSURE_KW  = {"unsure", "don't know", "not sure", "no answer", "dk", "n/a",
+               "prefer not", "not applicable"}
+
+
+def _residual_color(label: str, residual_index: int) -> str:
+    """Colour for a segment that is not in top_box or bottom_box.
+
+    Neutral/midpoint options  → GRAY_NEUTRAL  (~30% black tint)
+    Unsure/DK options         → GRAY_UNSURE   (darker grey)
+    Fallback: first residual  → GRAY_NEUTRAL, subsequent → GRAY_UNSURE
+    """
+    low = label.strip().lower()
+    if any(kw in low for kw in _NEUTRAL_KW):
+        return theme.GRAY_NEUTRAL
+    if any(kw in low for kw in _UNSURE_KW):
+        return theme.GRAY_UNSURE
+    return theme.GRAY_NEUTRAL if residual_index == 0 else theme.GRAY_UNSURE
 
 
 def _scale_bar_colors(labels_t2b: list[str],
@@ -44,7 +66,7 @@ def _scale_bar_colors(labels_t2b: list[str],
     if not top_vals and not bot_vals:
         return [theme.BAR_COLOR] * len(labels_t2b)
 
-    top_idx = bot_idx = 0
+    top_idx = bot_idx = res_idx = 0
     colors: list[str] = []
     for label in labels_t2b:
         if label in top_vals:
@@ -54,7 +76,8 @@ def _scale_bar_colors(labels_t2b: list[str],
             colors.append(_BOT_COLORS[min(bot_idx, len(_BOT_COLORS) - 1)])
             bot_idx += 1
         else:
-            colors.append(theme.GRAY_MID)
+            colors.append(_residual_color(label, res_idx))
+            res_idx += 1
     return colors
 
 
@@ -669,10 +692,10 @@ def add_grid_slide(
             values.append(pct)
         segments.append({"label": opt_label, "values": values})
 
-    # Segment colours
+    # Segment colours — uses shared palette helpers so every chart type is consistent
     top_vals = set(top_box_spec.get("values", []) if top_box_spec else [])
     bot_vals = set(bottom_box_spec.get("values", []) if bottom_box_spec else [])
-    top_idx = bot_idx = 0
+    top_idx = bot_idx = res_idx = 0
     seg_colors: list[str] = []
     for seg in segments:
         if seg["label"] in top_vals:
@@ -682,13 +705,17 @@ def add_grid_slide(
             seg_colors.append(_BOT_COLORS[min(bot_idx, len(_BOT_COLORS) - 1)])
             bot_idx += 1
         else:
-            seg_colors.append(theme.GRAY_MID)
+            seg_colors.append(_residual_color(seg["label"], res_idx))
+            res_idx += 1
+
+    # Circle colour: TEAL_MID for top-box totals, SALMON for bottom-box totals
+    circle_color = theme.TEAL_MID if top_vals else theme.SALMON
 
     # ── Build legend spec — legend embedded inside the chart figure ───────────
     circle_label = top_box_spec.get("label", "Total agree") if top_box_spec else None
     legend_spec: list[tuple] = []
     if circle_label:
-        legend_spec.append((circle_label, theme.TEAL_MID, True))
+        legend_spec.append((circle_label, circle_color, True))
     for seg, clr in zip(segments, seg_colors):
         legend_spec.append((seg["label"], clr, False))
 
@@ -698,7 +725,7 @@ def add_grid_slide(
         axis_left=None,   # auto-computed per label length inside render_stacked_bar
         axis_bottom=chart_styles.GRID_AXIS_BOTTOM,
         total_percents=total_percents if top_vals_list else None,
-        circle_color=theme.TEAL_MID,
+        circle_color=circle_color,
         legend_spec=legend_spec if legend_spec else None,
     )
     chart_buf.seek(0)
