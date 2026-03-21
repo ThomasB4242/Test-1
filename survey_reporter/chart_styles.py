@@ -248,17 +248,6 @@ def render_stacked_bar(
         # ~4 chars → 0.28, ~20 chars → 0.36, ~45 chars → 0.52; hard caps applied
         axis_left = max(0.26, min(GRID_AXIS_LEFT, 0.18 + _max_chars * 0.0075))
 
-    # Adaptive left margin — scale to the actual longest label so short-label
-    # grids (e.g. Coal / Oil / Gas) don't waste half the figure on whitespace.
-    if axis_left is None:
-        max_line_chars = max(
-            (max((len(part) for part in lbl.split('\n')), default=0)
-             for lbl in wrapped_labels),
-            default=15,
-        )
-        # 8 chars → ~0.28, 20 chars → ~0.36, 40 chars → ~0.53; capped 0.28–0.54
-        axis_left = max(0.28, min(0.54, 0.18 + max_line_chars * 0.0088))
-
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor("none")
     ax.set_facecolor("none")

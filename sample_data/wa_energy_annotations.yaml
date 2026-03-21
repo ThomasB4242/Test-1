@@ -42,7 +42,7 @@ slides:
       - energy_climate_oil
       - energy_climate_gas
     heading: "Climate impact of energy types"
-    question: "How bad do you think using each of the following energy types is for the climate? (%)"
+    question: "For each of the following, how bad do you think using the following energy types are for the climate? (%)"
     scale_order:
       - "Very bad"
       - "Moderately bad"
@@ -59,10 +59,6 @@ slides:
       values:
         - "Not that bad"
         - "Not at all bad"
-    row_labels:
-      - "Coal"
-      - "Oil, diesel & petrol"
-      - "Gas"
     annotation_font: 12
     annotations:
       - "Coal & oil seen as bad for the climate"
@@ -121,7 +117,7 @@ slides:
       - re_outcome_cost_living
       - re_outcome_debt
     heading: "Likely outcomes of more renewable energy"
-    question: "How likely do you think these outcomes would be if WA used more renewable energy? (%)"
+    question: "And how likely do you think these following outcomes would be if WA used more renewable energy? (%)"
     scale_order:
       - "Very likely"
       - "Somewhat likely"
@@ -138,20 +134,6 @@ slides:
       values:
         - "Somewhat unlikely"
         - "Very unlikely"
-    row_labels:
-      - "Providing good jobs"
-      - "Creating new industries"
-      - "Well-planned energy infrastructure"
-      - "Lowering pollution & addressing climate"
-      - "Better energy system reliability"
-      - "Maintaining living standards"
-      - "Delivering a strong economy"
-      - "More certainty for businesses"
-      - "Funding public services"
-      - "Contributing to a climate resilience fund"
-      - "Lower power prices"
-      - "Reducing the cost of living"
-      - "Paying off government debt"
     annotation_font: 10
     annotations:
       - "Optimism is broad — driven mainly by"
@@ -173,7 +155,7 @@ slides:
   - type: chart
     variable: re_target_support
     heading: "Support for a WA renewable energy target"
-    question: "How strongly do you support or oppose WA adopting a renewable energy target? (%)"
+    question: "There has been discussion about the WA government setting a target for the generation of renewable energy. How strongly do you support or oppose WA adopting a renewable energy target? (%)"
     chart_type: bar
     top_box:
       label: "Support"
