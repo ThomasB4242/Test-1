@@ -354,15 +354,15 @@ def render_stacked_bar(
                 h = mpatches.Patch(facecolor=_hex_to_rgb(clr), label=lbl)
             handles.append(h)
         ax_center = (axis_left + AXIS_RIGHT) / 2
-        # Limit columns so items wrap to 2 rows rather than getting clipped
-        ncols = min(len(handles), max(3, len(handles) // 2 + len(handles) % 2))
+        # All items on one row; user accepts legend exceeding chart width
         fig.legend(
             handles=handles,
             loc="lower center",
             bbox_to_anchor=(ax_center, 0.01),
             bbox_transform=fig.transFigure,
-            ncol=ncols,
-            fontsize=11,
+            ncol=len(handles),
+            fontsize=14,
+            labelcolor="#1A1A1A",
             frameon=False,
             handlelength=1.2,
             handleheight=0.9,
@@ -486,7 +486,7 @@ def render_pie_chart(
         x_txt = x1 + (0.04 if ha == "left" else -0.04)
         ax.text(x_txt, y1, label,
                 ha=ha, va="center",
-                fontsize=10, fontweight="bold", color=theme.GRAY_DARK,
+                fontsize=14, fontweight="bold", color="#1A1A1A",
                 clip_on=False)
 
     ax.set_xlim(-1.55, 1.55)
