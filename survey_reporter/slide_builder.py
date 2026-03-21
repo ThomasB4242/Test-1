@@ -30,30 +30,71 @@ def _rgb(hex_color: str) -> RGBColor:
 # Bar colour assignment
 # ---------------------------------------------------------------------------
 
-# Individual segment colours (position 1→2 positive, position 4→5 negative).
-# TEAL_MID and SALMON are reserved for combined circles, NOT used as bar segments.
-_TOP_COLORS = [theme.TEAL_DARK, theme.TEAL_LIGHT]
-_BOT_COLORS = [theme.PINK_LIGHT, theme.CORAL]
-
 # Keyword sets for classifying residual (neither top nor bottom) segments
 _NEUTRAL_KW = {"neutral", "neither", "no idea", "no opinion", "middle", "no impact"}
 _UNSURE_KW  = {"unsure", "don't know", "not sure", "no answer", "dk", "n/a",
                "prefer not", "not applicable"}
 
 
-def _residual_color(label: str, residual_index: int) -> str:
-    """Colour for a segment that is not in top_box or bottom_box.
+def _assign_segment_colors(labels: list[str],
+                            top_vals: set[str],
+                            bot_vals: set[str]) -> list[str]:
+    """Assign bar-segment hex colours following the brand palette rules.
 
-    Neutral/midpoint options  → GRAY_NEUTRAL  (~30% black tint)
-    Unsure/DK options         → GRAY_UNSURE   (darker grey)
-    Fallback: first residual  → GRAY_NEUTRAL, subsequent → GRAY_UNSURE
+    Top-box colours (positive positions):
+      - 1 option  → TEAL_MID  (binary scale, e.g. "Yes")
+      - 2 options → TEAL_DARK (pos 1) + TEAL_LIGHT (pos 2)
+
+    Bottom-box colours (negative positions):
+      - 1 option  → SALMON    (binary scale, e.g. "No")
+      - 2 options → PINK_LIGHT (pos 4) + CORAL (pos 5)
+
+    Residual / grey options:
+      - Single residual (e.g. lone "Unsure") → GRAY_NEUTRAL (light)
+      - Multiple residuals:
+          * neutral keyword (e.g. "Neither/Neutral") → GRAY_NEUTRAL
+          * unsure keyword  (e.g. "Unsure/DK")       → GRAY_UNSURE
+          * fallback order: first → GRAY_NEUTRAL, rest → GRAY_UNSURE
+
+    TEAL_MID and SALMON are reserved for combined circles, NOT as bar segments —
+    except when used as the single binary-scale option colour above.
     """
-    low = label.strip().lower()
-    if any(kw in low for kw in _NEUTRAL_KW):
-        return theme.GRAY_NEUTRAL
-    if any(kw in low for kw in _UNSURE_KW):
-        return theme.GRAY_UNSURE
-    return theme.GRAY_NEUTRAL if residual_index == 0 else theme.GRAY_UNSURE
+    if not top_vals and not bot_vals:
+        return [theme.BAR_COLOR] * len(labels)
+
+    # Scale the colour sequences to the number of options in each box
+    top_colors = [theme.TEAL_MID] if len(top_vals) == 1 else [theme.TEAL_DARK, theme.TEAL_LIGHT]
+    bot_colors = [theme.SALMON]   if len(bot_vals) == 1 else [theme.PINK_LIGHT, theme.CORAL]
+
+    # Pre-compute residual grey mapping
+    residuals = [l for l in labels if l not in top_vals and l not in bot_vals]
+    if len(residuals) <= 1:
+        res_map = {l: theme.GRAY_NEUTRAL for l in residuals}
+    else:
+        res_map: dict[str, str] = {}
+        fallback_idx = 0
+        for label in residuals:
+            low = label.strip().lower()
+            if any(kw in low for kw in _NEUTRAL_KW):
+                res_map[label] = theme.GRAY_NEUTRAL
+            elif any(kw in low for kw in _UNSURE_KW):
+                res_map[label] = theme.GRAY_UNSURE
+            else:
+                res_map[label] = theme.GRAY_NEUTRAL if fallback_idx == 0 else theme.GRAY_UNSURE
+                fallback_idx += 1
+
+    top_idx = bot_idx = 0
+    result: list[str] = []
+    for label in labels:
+        if label in top_vals:
+            result.append(top_colors[min(top_idx, len(top_colors) - 1)])
+            top_idx += 1
+        elif label in bot_vals:
+            result.append(bot_colors[min(bot_idx, len(bot_colors) - 1)])
+            bot_idx += 1
+        else:
+            result.append(res_map[label])
+    return result
 
 
 def _scale_bar_colors(labels_t2b: list[str],
@@ -62,23 +103,7 @@ def _scale_bar_colors(labels_t2b: list[str],
     """Per-bar hex colours based on top/bottom box membership."""
     top_vals = set(top_box_spec.get("values", []) if top_box_spec else [])
     bot_vals = set(bottom_box_spec.get("values", []) if bottom_box_spec else [])
-
-    if not top_vals and not bot_vals:
-        return [theme.BAR_COLOR] * len(labels_t2b)
-
-    top_idx = bot_idx = res_idx = 0
-    colors: list[str] = []
-    for label in labels_t2b:
-        if label in top_vals:
-            colors.append(_TOP_COLORS[min(top_idx, len(_TOP_COLORS) - 1)])
-            top_idx += 1
-        elif label in bot_vals:
-            colors.append(_BOT_COLORS[min(bot_idx, len(_BOT_COLORS) - 1)])
-            bot_idx += 1
-        else:
-            colors.append(_residual_color(label, res_idx))
-            res_idx += 1
-    return colors
+    return _assign_segment_colors(labels_t2b, top_vals, bot_vals)
 
 
 # ---------------------------------------------------------------------------
@@ -692,21 +717,11 @@ def add_grid_slide(
             values.append(pct)
         segments.append({"label": opt_label, "values": values})
 
-    # Segment colours — uses shared palette helpers so every chart type is consistent
-    top_vals = set(top_box_spec.get("values", []) if top_box_spec else [])
-    bot_vals = set(bottom_box_spec.get("values", []) if bottom_box_spec else [])
-    top_idx = bot_idx = res_idx = 0
-    seg_colors: list[str] = []
-    for seg in segments:
-        if seg["label"] in top_vals:
-            seg_colors.append(_TOP_COLORS[min(top_idx, len(_TOP_COLORS) - 1)])
-            top_idx += 1
-        elif seg["label"] in bot_vals:
-            seg_colors.append(_BOT_COLORS[min(bot_idx, len(_BOT_COLORS) - 1)])
-            bot_idx += 1
-        else:
-            seg_colors.append(_residual_color(seg["label"], res_idx))
-            res_idx += 1
+    # Segment colours — single source of truth via _assign_segment_colors
+    top_vals   = set(top_box_spec.get("values", []) if top_box_spec else [])
+    bot_vals   = set(bottom_box_spec.get("values", []) if bottom_box_spec else [])
+    seg_labels = [seg["label"] for seg in segments]
+    seg_colors = _assign_segment_colors(seg_labels, top_vals, bot_vals)
 
     # Circle colour: TEAL_MID for top-box totals, SALMON for bottom-box totals
     circle_color = theme.TEAL_MID if top_vals else theme.SALMON
