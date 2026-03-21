@@ -164,8 +164,8 @@ def render_simple_bar(
                     fontsize=10, color=theme.GRAY_DARK, fontweight="bold", zorder=4)
 
     ax.set_yticks(list(range(n)))
-    ax.set_yticklabels(wrapped_labels, fontsize=10, color=theme.GRAY_DARK,
-                       linespacing=1.1)
+    ax.set_yticklabels(wrapped_labels, fontsize=14, color="#1A1A1A",
+                       linespacing=0.88)
     for lbl in ax.get_yticklabels():
         lbl.set_fontweight("bold")
     ax.set_ylim(-0.55, n - 0.45)
@@ -235,7 +235,6 @@ def render_stacked_bar(
 
     n_rows = len(row_labels)
     wrapped_labels = [_wrap_label(lbl, 45) for lbl in row_labels]
-    label_fs = 11 if n_rows <= 5 else (10 if n_rows <= 9 else 9)
 
     # Adaptive axis_left: scale with longest label so short-label grids get
     # wider bar area while long-label grids still have room to read labels.
@@ -307,8 +306,8 @@ def render_stacked_bar(
 
     # ── y-axis: bold labels ───────────────────────────────────────────────────
     ax.set_yticks(list(range(n_rows)))
-    ax.set_yticklabels(wrapped_labels, fontsize=label_fs, color=theme.GRAY_DARK,
-                       linespacing=1.1)
+    ax.set_yticklabels(wrapped_labels, fontsize=14, color="#1A1A1A",
+                       linespacing=0.88)
     for lbl in ax.get_yticklabels():
         lbl.set_fontweight("bold")
     ax.set_ylim(-0.55, n_rows - 0.45)
