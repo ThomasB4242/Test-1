@@ -610,7 +610,7 @@ def add_chart_slide(
                 pct = _sum_box(freq_by_label, bottom_box_spec.get("values", []))
                 max_bar = max((freq_by_label.get(lbl, 0) for lbl in bot_vals_set), default=0)
                 cx = _circle_cx_simple(max_bar, offset=r * 0.90 * 1.15)
-                _draw_circle_badge(slide, cx, cy, r * 0.90, theme.CORAL,
+                _draw_circle_badge(slide, cx, cy, r * 0.90, theme.SALMON,
                                    pct, bottom_box_spec.get("label", ""))
 
     # ── Annotation panel — positioned in the right teal panel ────────────────

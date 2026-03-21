@@ -358,7 +358,7 @@ def render_stacked_bar(
                     markeredgewidth=border_w,
                     zorder=5, clip_on=False)
             ax.text(tp, row_i, str(int(round(tp))),
-                    ha="center", va="center",
+                    ha="center", va="center_baseline",
                     fontsize=c_fs, color="#1A1A1A", fontweight="bold",
                     zorder=6, clip_on=False)
 
