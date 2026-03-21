@@ -415,7 +415,8 @@ def add_commentary_slide(prs: Presentation, spec: dict, page_num: int | None = N
 
 _CHART_L  = 0.34    # chart image left edge
 _CHART_W  = 5.80    # single-bar chart image width
-_CHART_T  = 1.87    # chart image top (below title + question)
+_CHART_T      = 2.10    # chart image top (extra room for 2-line questions)
+_CHART_H_MAX  = 4.60    # cap so chart never runs into footer (footer at ~6.82")
 # Annotation: use template's preset right-panel position (ANNOT_BOX) at 14pt
 _ANNOT_L  = theme.ANNOT_BOX[0]   # 8.07"  — centre of the teal diagonal panel
 _ANNOT_W  = theme.ANNOT_BOX[2]   # 4.87"
@@ -506,7 +507,7 @@ def add_chart_slide(
             labels_t2b   = list(reversed([f.label   for f in freqs]))
             percents_t2b = list(reversed([f.percent for f in freqs]))
             n_bars       = len(labels_t2b)
-            ch           = _chart_h_for_n(n_bars)
+            ch           = min(_CHART_H_MAX, _chart_h_for_n(n_bars))
             bar_colors   = _scale_bar_colors(labels_t2b, top_box_spec, bottom_box_spec)
             chart_buf    = chart_styles.render_simple_bar(
                 labels_t2b, percents_t2b, bar_colors=bar_colors, fig_h=ch, fig_w=cw)

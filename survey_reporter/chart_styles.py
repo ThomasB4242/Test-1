@@ -161,11 +161,11 @@ def render_simple_bar(
         if val >= 8:
             ax.text(val / 2, i, f"{int(round(val))}",
                     ha="center", va="center",
-                    fontsize=10, color="white", fontweight="bold", zorder=4)
+                    fontsize=14, color="white", fontweight="bold", zorder=4)
         else:
             ax.text(val + 0.8, i, f"{int(round(val))}",
                     ha="left", va="center",
-                    fontsize=10, color=theme.GRAY_DARK, fontweight="bold", zorder=4)
+                    fontsize=14, color="#1A1A1A", fontweight="bold", zorder=4)
 
     ax.set_yticks(list(range(n)))
     ax.set_yticklabels(wrapped_labels, fontsize=14, color="#1A1A1A",
@@ -302,7 +302,7 @@ def render_stacked_bar(
                 cx = lefts[row_i] + val / 2
                 ax.text(cx, row_i, f"{int(round(val))}",
                         ha="center", va="center",
-                        fontsize=9, color=txt_clr, fontweight="bold", zorder=4)
+                        fontsize=14, color="white", fontweight="bold", zorder=4)
         lefts = [l + v for l, v in zip(lefts, vals)]
 
     # ── x-axis: grid lines only, NO tick labels ───────────────────────────────
@@ -353,7 +353,7 @@ def render_stacked_bar(
                     zorder=5, clip_on=False)
             ax.text(tp, row_i, str(int(round(tp))),
                     ha="center", va="center",
-                    fontsize=c_fs, color=cclr, fontweight="bold",
+                    fontsize=c_fs, color="#1A1A1A", fontweight="bold",
                     zorder=6, clip_on=False)
 
     # ── Embedded legend (drawn inside the figure below the axes) ─────────────
