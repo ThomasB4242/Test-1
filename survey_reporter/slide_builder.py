@@ -703,7 +703,8 @@ def add_grid_slide(
     chart_buf.seek(0)
     slide.shapes.add_picture(chart_buf,
                              Inches(cl), Inches(ct),
-                             width=Inches(cw), height=Inches(ch))
+                             width=Inches(cw + chart_styles.LEGEND_EXTRA_W),
+                             height=Inches(ch))
 
     # ── Annotation panel ──────────────────────────────────────────────────────
     if annot_lines:

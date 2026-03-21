@@ -42,6 +42,10 @@ AXIS_TOP         = 0.95    # leave a sliver at top
 AXIS_BOTTOM      = 0.03    # simple bar — no x-axis labels
 GRID_AXIS_BOTTOM = 0.05    # grid — no x-axis labels needed
 
+# Extra figure width (inches) added when a legend is present so all legend
+# items fit on one row without being clipped.
+LEGEND_EXTRA_W: float = 2.5
+
 
 def _hex_to_rgb(hex_color: str):
     h = hex_color.lstrip("#")
@@ -247,16 +251,29 @@ def render_stacked_bar(
         # ~4 chars → 0.28, ~20 chars → 0.36, ~45 chars → 0.52; hard caps applied
         axis_left = max(0.26, min(GRID_AXIS_LEFT, 0.18 + _max_chars * 0.0075))
 
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    # When a legend is present, widen the figure so all legend items fit on one
+    # row.  Scale axis_left / AXIS_RIGHT proportionally so the bar area keeps
+    # exactly the same absolute size — only the right-hand whitespace grows.
+    if legend_spec:
+        render_fig_w = fig_w + LEGEND_EXTRA_W
+        _s  = fig_w / render_fig_w
+        al  = axis_left * _s
+        ar  = AXIS_RIGHT * _s
+    else:
+        render_fig_w = fig_w
+        al  = axis_left
+        ar  = AXIS_RIGHT
+
+    fig, ax = plt.subplots(figsize=(render_fig_w, fig_h))
     fig.patch.set_facecolor("none")
     ax.set_facecolor("none")
     plt.subplots_adjust(
-        left=axis_left, right=AXIS_RIGHT,
+        left=al, right=ar,
         top=AXIS_TOP,   bottom=axis_bottom,
     )
 
     # Rounded corner radii for visually circular corners
-    r_x, r_y = _bar_radii(fig_h, n_rows, axis_left, axis_bottom, fig_w)
+    r_x, r_y = _bar_radii(fig_h, n_rows, al, axis_bottom, render_fig_w)
 
     # Pre-compute which segment is the last (rightmost) non-zero for each row
     last_seg_idx = [-1] * n_rows
@@ -353,8 +370,8 @@ def render_stacked_bar(
             else:
                 h = mpatches.Patch(facecolor=_hex_to_rgb(clr), label=lbl)
             handles.append(h)
-        ax_center = (axis_left + AXIS_RIGHT) / 2
-        # All items on one row; user accepts legend exceeding chart width
+        ax_center = (al + ar) / 2
+        # All items on one row; figure is widened by LEGEND_EXTRA_W so no clipping
         fig.legend(
             handles=handles,
             loc="lower center",
