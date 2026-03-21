@@ -194,6 +194,48 @@ def render_simple_bar(
 
 
 # ---------------------------------------------------------------------------
+# Pie chart
+# ---------------------------------------------------------------------------
+
+def render_pie(
+    labels: List[str],
+    values: List[float],
+    colors: List[str] | None = None,
+    fig_h: float = 4.0,
+    fig_w: float = 4.0,
+) -> io.BytesIO:
+    """Render a pie chart.  Data labels inside slices are always white.
+    Slices smaller than 3% get no label to avoid overlap clutter.
+    """
+    if colors is None:
+        colors = list(theme.LIKERT_COLORS)
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    fig.patch.set_facecolor("none")
+    ax.set_facecolor("none")
+
+    _, _, autotexts = ax.pie(
+        values,
+        colors=[colors[i % len(colors)] for i in range(len(values))],
+        autopct=lambda p: f"{p:.0f}" if p >= 3 else "",
+        pctdistance=0.65,
+        startangle=90,
+        counterclock=False,
+    )
+    for t in autotexts:
+        t.set_color("white")
+        t.set_fontweight("bold")
+        t.set_fontsize(13)
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True,
+                bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+# ---------------------------------------------------------------------------
 # Stacked horizontal bar chart (one row per grid item / survey statement)
 # ---------------------------------------------------------------------------
 
@@ -305,7 +347,7 @@ def render_stacked_bar(
                                 r_x if is_last else 0.0,
                                 r_y if is_last else 0.0,
                                 clr)
-            if val >= 7:
+            if val >= 2:
                 cx = lefts[row_i] + val / 2
                 ax.text(cx, row_i, f"{int(round(val))}",
                         ha="center", va="center",
@@ -328,9 +370,11 @@ def render_stacked_bar(
         else:
             spine.set_visible(False)
 
-    # ── y-axis: bold labels ───────────────────────────────────────────────────
+    # ── y-axis: bold labels — font scales down for denser grids ──────────────
+    # Calibrated so 3-row grid = 14pt, 13-row grid ≈ 12pt, min 10pt
+    y_label_fs = max(10, min(14, 16 - n_rows // 3))
     ax.set_yticks(list(range(n_rows)))
-    ax.set_yticklabels(wrapped_labels, fontsize=14, color="#1A1A1A",
+    ax.set_yticklabels(wrapped_labels, fontsize=y_label_fs, color="#1A1A1A",
                        linespacing=0.88)
     for lbl in ax.get_yticklabels():
         lbl.set_fontweight("bold")
