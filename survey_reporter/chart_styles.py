@@ -275,6 +275,13 @@ def render_stacked_bar(
     # Rounded corner radii for visually circular corners
     r_x, r_y = _bar_radii(fig_h, n_rows, al, axis_bottom, render_fig_w)
 
+    # Bar height in matplotlib points — drives both segment-label and circle sizing
+    _ax_h_in   = (AXIS_TOP - axis_bottom) * fig_h
+    _bar_h_in  = 0.55 * _ax_h_in / max(n_rows, 1)
+    _bar_h_pts = _bar_h_in * 72
+    # Segment label font: proportional to bar height, capped at 14pt
+    seg_label_fs = max(8, min(14, int(_bar_h_pts * 0.70)))
+
     # Pre-compute which segment is the last (rightmost) non-zero for each row
     last_seg_idx = [-1] * n_rows
     for i, seg in enumerate(segments):
@@ -302,7 +309,7 @@ def render_stacked_bar(
                 cx = lefts[row_i] + val / 2
                 ax.text(cx, row_i, f"{int(round(val))}",
                         ha="center", va="center",
-                        fontsize=14, color="white", fontweight="bold", zorder=4)
+                        fontsize=seg_label_fs, color="white", fontweight="bold", zorder=4)
         lefts = [l + v for l, v in zip(lefts, vals)]
 
     # ── x-axis: grid lines only, NO tick labels ───────────────────────────────
@@ -333,12 +340,11 @@ def render_stacked_bar(
 
     # ── In-chart total circles ────────────────────────────────────────────────
     if total_percents:
-        # Diameter in matplotlib points ≈ bar height in inches × 72 pt/in
-        ax_h_in  = (AXIS_TOP - axis_bottom) * fig_h
-        bar_h_in = 0.55 * ax_h_in / max(n_rows, 1)
-        c_diam   = max(16, bar_h_in * 72)   # pts; min 16pt so always visible
-        c_fs     = max(7, int(c_diam * 0.38))
-        border_w = max(1.5, c_diam * 0.12)   # border thickness scales with size
+        # Circle must be at least as large as the segment labels inside the bars.
+        # Enforce: c_fs >= seg_label_fs, then back-derive minimum c_diam.
+        c_diam   = max(seg_label_fs / 0.38, _bar_h_pts, 16)
+        c_fs     = max(seg_label_fs, int(c_diam * 0.38))
+        border_w = max(1.5, c_diam * 0.12)
         cclr_hex = circle_color or theme.TEAL_MID
         cclr     = _hex_to_rgb(cclr_hex)
         for row_i, tp in enumerate(total_percents):
