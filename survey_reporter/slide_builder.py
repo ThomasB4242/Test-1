@@ -482,6 +482,9 @@ _GRID_CHART_MAX_H  = 4.30   # cap height so chart+legend fits in strip
 _GRID_ANNOT_L      = 9.50   # grid annotation left (just past chart)
 _GRID_ANNOT_W      = 12.93 - _GRID_ANNOT_L  # ~3.43"
 
+# Cluster column uses full slide width — no annotation sidebar
+_FULL_CHART_W = theme.SLIDE_W - _CHART_L - 0.34   # ≈ 12.65"
+
 # Template layout names
 _LAYOUT_SINGLE_BAR = "title slide"       # Layout 0  — diagonal right background
 _LAYOUT_GRID       = "3_title slide"     # Layout 11 — full-width mint horizontal strip
@@ -912,8 +915,12 @@ def _write_chart_script(script_path: str, render_fn: str, kwargs: dict) -> None:
     """Write a standalone Python script that regenerates the chart as a PNG.
 
     Edit the data variables in the script and run it to get an updated image.
+    fig_w and fig_h are emitted as prominent FIG_W / FIG_H constants so they
+    are trivially easy to find and change for resizing.
     """
     png_path = os.path.splitext(script_path)[0] + ".png"
+    # Size params get their own named constants at the top
+    _size_map = {"fig_w": "FIG_W", "fig_h": "FIG_H"}
     lines = [
         "\"\"\"Auto-generated chart script — edit values/labels and run to regenerate the PNG.\"\"\"",
         "from __future__ import annotations",
@@ -922,12 +929,19 @@ def _write_chart_script(script_path: str, render_fn: str, kwargs: dict) -> None:
         "sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))",
         "from survey_reporter import chart_styles, theme",
         "",
+        "# ── Size — adjust these and re-run to resize the chart ──────────",
     ]
+    for k in ("fig_w", "fig_h"):
+        if k in kwargs:
+            lines.append(f"{_size_map[k]} = {repr(kwargs[k])}   # inches")
+    lines.append("")
     for k, v in kwargs.items():
-        lines.append(f"{k} = {repr(v)}")
+        if k not in _size_map:
+            lines.append(f"{k} = {repr(v)}")
     lines.append("")
     call_args = ", ".join(
-        f"{k}={k}" for k in kwargs
+        f"{k}={_size_map[k]}" if k in _size_map else f"{k}={k}"
+        for k in kwargs
     )
     lines.append(f"buf = chart_styles.{render_fn}({call_args})")
     lines.append(f"out = {repr(png_path)}")
@@ -1087,7 +1101,7 @@ def add_cluster_column_slide(
     ch = min(_GRID_CHART_MAX_H, max(4.00, 4.5))
     ct = (_GRID_MINT_TOP + _GRID_MINT_BOTTOM - ch) / 2
     cl = _CHART_L
-    cw = _GRID_CHART_W
+    cw = _FULL_CHART_W   # full slide width — no sidebar on cluster column
 
     chart_buf = chart_styles.render_cluster_column(
         cluster_labels, series, colors=colors,
@@ -1098,11 +1112,7 @@ def add_cluster_column_slide(
     slide.shapes.add_picture(chart_buf, Inches(cl), Inches(ct),
                              width=Inches(cw), height=Inches(ch))
 
-    annot_font = spec.get("annotation_font", _ANNOT_FONT)
-    if annot_lines:
-        _add_multiline_textbox(
-            slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
-            annot_lines, font_size=annot_font, color=theme.GRAY_DARK)
+    # Cluster column has no sidebar — annotations are intentionally omitted
 
     if not _fill_placeholder(slide, 22, base_note):
         _add_footer(slide, base_note, page_num)

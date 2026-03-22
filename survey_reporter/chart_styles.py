@@ -820,8 +820,10 @@ def render_cluster_column(
     # Cluster labels at the TOP of each cluster — blended transform: data-x, axes-y
     from matplotlib.transforms import blended_transform_factory
     trans_top = blended_transform_factory(ax.transData, ax.transAxes)
+    # Scale wrap width with chart width and cluster count: ~14 chars per inch per cluster
+    wrap_w = max(14, int((fig_w or 9.0) / n_clusters * 14))
     for xi, lbl in zip(x, cluster_labels):
-        ax.text(xi, 1.03, _wrap_label(lbl, 14),
+        ax.text(xi, 1.03, _wrap_label(lbl, wrap_w),
                 transform=trans_top, ha="center", va="bottom",
                 fontsize=14, fontweight="bold", color="#1A1A1A",
                 multialignment="center", clip_on=False)
