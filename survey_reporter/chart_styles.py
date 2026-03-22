@@ -780,27 +780,29 @@ def render_cluster_column(
     bar_w     = 0.16
     group_gap = 0.08
     total_group_w = n_series * bar_w + group_gap
-    import numpy as np_inner
-    x = np_inner.arange(n_clusters) * (total_group_w + 0.12)
+    x = np.arange(n_clusters) * (total_group_w + 0.12)
 
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     fig.patch.set_facecolor("none")
     ax.set_facecolor("none")
     plt.subplots_adjust(left=AL, right=AR, top=AT, bottom=AB)
 
+    r_x_data = bar_w * 0.18
     for s_i, ser in enumerate(series):
         clr  = colors[s_i % len(colors)]
         xs   = x + s_i * bar_w - (n_series - 1) * bar_w / 2
         vals = [float(v) for v in ser["values"]]
-        ax.bar(xs, vals, width=bar_w, color=_hex_to_rgb(clr),
-               zorder=3, edgecolor="none")
         for xi, vi in zip(xs, vals):
+            _rounded_top_bar(ax, xi, 0.0, vi, bar_w, r_x_data, vi * 0.18, clr)
             if vi >= 8:
                 ax.text(xi, vi / 2, f"{int(round(vi))}",
                         ha="center", va="center_baseline",
                         fontsize=9, color="white", fontweight="bold", zorder=4)
 
     # Axes
+    margin = total_group_w * 0.35
+    ax.set_xlim(x[0] - total_group_w / 2 - margin,
+                x[-1] + total_group_w / 2 + margin)
     ax.set_ylim(0, 100)
     ax.set_xticks(x)
     ax.set_xticklabels([])           # no bottom labels — labels go above instead
