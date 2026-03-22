@@ -21,6 +21,10 @@ FONT_FACE  = "DM Sans"
 LIKERT_COLORS = [TEAL_DARK, TEAL_LIGHT, GRAY_NEUTRAL, PINK_LIGHT, CORAL]
 BAR_COLOR = TEAL_MID     # simple horizontal bar
 
+# Four shades of teal for clustered column charts (darkest → lightest)
+TEAL_PALE      = "#C8F4F3"
+CLUSTER_COLORS = [TEAL_DARK, TEAL_MID, TEAL_LIGHT, TEAL_PALE]
+
 # Slide dimensions (inches) — widescreen 13.33 × 7.5
 SLIDE_W = 13.33
 SLIDE_H = 7.5

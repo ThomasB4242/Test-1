@@ -228,3 +228,96 @@ slides:
       - "4. Climate & emissions — 14%"
       - "5. Reduce fossil fuel reliance — 11%"
     base: "Base: those who support a target (n=626)"
+
+  # ── Stacked column: support for renewable energy target (tracking) ───────────
+  - type: stacked_column
+    heading: "Support for a WA renewable energy target — tracking"
+    question: "How strongly do you support or oppose WA adopting a renewable energy target? (%, selected waves)"
+    scale_order:
+      - "Strongly support"
+      - "Somewhat support"
+      - "Unsure"
+      - "Somewhat oppose"
+      - "Strongly oppose"
+    columns:
+      - label: "Aug 2022"
+        values:
+          Strongly support: 28
+          Somewhat support: 34
+          Unsure: 23
+          Somewhat oppose: 8
+          Strongly oppose: 7
+      - label: "Nov 2022"
+        values:
+          Strongly support: 30
+          Somewhat support: 33
+          Unsure: 21
+          Somewhat oppose: 9
+          Strongly oppose: 7
+      - label: "Feb 2023"
+        values:
+          Strongly support: 29
+          Somewhat support: 35
+          Unsure: 20
+          Somewhat oppose: 9
+          Strongly oppose: 7
+      - label: "May 2023"
+        values:
+          Strongly support: 31
+          Somewhat support: 34
+          Unsure: 19
+          Somewhat oppose: 9
+          Strongly oppose: 7
+      - label: "Aug 2023"
+        values:
+          Strongly support: 32
+          Somewhat support: 34
+          Unsure: 18
+          Somewhat oppose: 9
+          Strongly oppose: 7
+    top_box:
+      label: "Total support"
+      values:
+        - "Strongly support"
+        - "Somewhat support"
+    bottom_box:
+      label: "Total oppose"
+      values:
+        - "Somewhat oppose"
+        - "Strongly oppose"
+    annotations:
+      - "Support for a renewable energy target has"
+      - "grown steadily across all five waves."
+      - ""
+      - {text: "  ↑ Total support up 5pp since Aug 2022", color: teal}
+      - {text: "  ↓ Unsure down 5pp across the same period", color: coral}
+    base: "Base: all respondents (n≈1,000 per wave, illustrative)"
+
+  # ── Cluster column: renewable energy outcomes by age group ───────────────────
+  - type: cluster_column
+    heading: "Expected outcomes of more renewable energy — by age group"
+    question: "% who think each outcome is 'likely' if WA used more renewable energy"
+    cluster_labels:
+      - "New jobs"
+      - "New industries"
+      - "Better environment"
+      - "Strong economy"
+      - "Lower power prices"
+      - "More reliable"
+      - "Better public services"
+    series:
+      - label: "18–29"
+        values: [79, 75, 78, 70, 60, 72, 66]
+      - label: "30–44"
+        values: [76, 73, 74, 68, 58, 70, 64]
+      - label: "45–59"
+        values: [70, 68, 69, 63, 52, 65, 59]
+      - label: "60+"
+        values: [63, 62, 65, 57, 47, 58, 53]
+    annotations:
+      - "Younger cohorts are consistently more"
+      - "optimistic about renewable energy outcomes."
+      - ""
+      - {text: "  ↑ 18–29 lead on almost every outcome", color: teal}
+      - {text: "  ↓ 60+ most sceptical on power prices", color: coral}
+    base: "Base: all respondents (n=1,011; illustrative breakdowns)"

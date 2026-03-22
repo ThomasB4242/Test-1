@@ -144,14 +144,17 @@ def main():
     print(f"Loading annotations: {annot_file}")
     annotations = load_annotations(str(annot_file))
 
+    charts_dir = base_dir / "sample_data" / "charts"
     print(f"Building PPTX → {output}")
     build_pptx(
         results,
         annotations,
         str(output),
         template_path=str(template),
+        chart_export_dir=str(charts_dir),
     )
     print(f"Done! → {output}")
+    print(f"Chart scripts → {charts_dir}/")
 
 
 if __name__ == "__main__":

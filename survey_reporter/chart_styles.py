@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import io
 import math
+import os
+import re
 import textwrap
 from typing import List
 
@@ -559,6 +561,278 @@ def render_pie_chart(
     ax.set_xlim(-1.55, 1.55)
     ax.set_ylim(-1.25, 1.25)
     ax.set_aspect("equal")
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True,
+                bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+# ---------------------------------------------------------------------------
+# Rounded-top-corner bar primitive  (for vertical / column charts)
+# ---------------------------------------------------------------------------
+
+def _rounded_top_bar(ax, x_center: float, y0: float, y1: float,
+                     bar_w: float, r_x: float, r_y: float,
+                     hex_color: str, zorder: int = 3) -> None:
+    """Draw a vertical bar with rounded top corners, sharp bottom corners."""
+    if y1 <= y0:
+        return
+    r_x = min(r_x, bar_w * 0.48)
+    r_y = min(r_y, (y1 - y0) * 0.48)
+    x0 = x_center - bar_w / 2
+    x1 = x_center + bar_w / 2
+    verts = [
+        (x0,       y0),
+        (x0,       y1 - r_y),
+        (x0,       y1),           # ctrl – top-left corner
+        (x0 + r_x, y1),
+        (x1 - r_x, y1),
+        (x1,       y1),           # ctrl – top-right corner
+        (x1,       y1 - r_y),
+        (x1,       y0),
+        (x0,       y0),
+    ]
+    codes = [
+        Path.MOVETO,
+        Path.LINETO,
+        Path.CURVE3, Path.CURVE3,
+        Path.LINETO,
+        Path.CURVE3, Path.CURVE3,
+        Path.LINETO,
+        Path.CLOSEPOLY,
+    ]
+    fc = _hex_to_rgb(hex_color)
+    ax.add_patch(PathPatch(Path(verts, codes),
+                           facecolor=fc, edgecolor="none", zorder=zorder))
+
+
+# ---------------------------------------------------------------------------
+# Stacked column chart  (vertical stacked bars — for tracking data)
+# ---------------------------------------------------------------------------
+
+def render_stacked_column(
+    col_labels: List[str],
+    segments: List[dict],
+    colors: List[str] | None = None,
+    fig_h: float | None = None,
+    fig_w: float | None = None,
+    total_percents: List[float] | None = None,
+    circle_color: str | None = None,
+    legend_spec: List[tuple] | None = None,
+) -> io.BytesIO:
+    """Vertical stacked bar chart (columns) for tracking data.
+
+    segments : [{label, values}] where values[i] = % for column i.
+    total_percents : top-box total per column — circle drawn ON the bar at
+                     y = total_pct (same principle as horizontal bar circles).
+    Legend drawn on the right side of the axes.
+    """
+    n_cols = len(col_labels)
+    if colors is None:
+        colors = list(theme.LIKERT_COLORS)
+    if fig_h is None:
+        fig_h = 4.5
+    if fig_w is None:
+        fig_w = max(5.0, n_cols * 1.4)
+
+    # Margins: leave right room for legend
+    AL = 0.07   # axis left
+    AR = 0.72   # axis right (legend goes 0.73–1.0)
+    AT = 0.92
+    AB = 0.12   # bottom for x-tick labels
+
+    bar_w = 0.65   # bar width in data units (x-axis = 0..n_cols-1)
+    r_x_data = bar_w * 0.22
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    fig.patch.set_facecolor("none")
+    ax.set_facecolor("none")
+    plt.subplots_adjust(left=AL, right=AR, top=AT, bottom=AB)
+
+    # Pre-compute topmost non-zero segment per column
+    last_seg_idx = [-1] * n_cols
+    for i, seg in enumerate(segments):
+        for col_i, val in enumerate(seg["values"]):
+            if val > 0:
+                last_seg_idx[col_i] = i
+
+    # Draw segments bottom-to-top
+    bottoms = [0.0] * n_cols
+    for i, seg in enumerate(segments):
+        clr = colors[i % len(colors)]
+        for col_i, val in enumerate(seg["values"]):
+            if val <= 0:
+                continue
+            y0 = bottoms[col_i]
+            y1 = y0 + val
+            is_top = (i == last_seg_idx[col_i])
+            ry = (val * 0.18) if is_top else 0.0
+            _rounded_top_bar(ax, col_i, y0, y1, bar_w, r_x_data, ry, clr)
+            if val >= 2:
+                ax.text(col_i, y0 + val / 2, f"{int(round(val))}",
+                        ha="center", va="center_baseline",
+                        fontsize=10, color="white", fontweight="bold", zorder=4)
+            bottoms[col_i] = y1
+
+    # Total circles — at (col_i, total_pct) matching the percentage on the y-axis
+    if total_percents:
+        cclr_hex = circle_color or theme.TEAL_MID
+        cclr = _hex_to_rgb(cclr_hex)
+        c_diam = 22.0
+        c_fs   = max(8, int(c_diam * 0.38))
+        border_w = max(1.5, c_diam * 0.12)
+        for col_i, tp in enumerate(total_percents):
+            if tp <= 0:
+                continue
+            ax.plot(col_i, tp, "o",
+                    markersize=c_diam, color="white",
+                    markeredgecolor=cclr, markeredgewidth=border_w,
+                    zorder=5, clip_on=False)
+            ax.text(col_i, tp, str(int(round(tp))),
+                    ha="center", va="center_baseline",
+                    fontsize=c_fs, color="#1A1A1A", fontweight="bold",
+                    zorder=6, clip_on=False)
+
+    # Axes styling
+    ax.set_xlim(-0.55, n_cols - 0.45)
+    ax.set_ylim(0, 100)
+    ax.set_xticks(range(n_cols))
+    ax.set_xticklabels(col_labels, fontsize=12, fontweight="bold", color="#1A1A1A")
+    ax.tick_params(axis="x", length=0)
+    ax.yaxis.set_visible(False)
+    ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="#E0E0E0", zorder=0)
+    ax.set_axisbelow(True)
+    for name, spine in ax.spines.items():
+        if name == "bottom":
+            spine.set_visible(True)
+            spine.set_linewidth(1.4)
+            spine.set_color(theme.GRAY_DARK)
+        else:
+            spine.set_visible(False)
+
+    # Right-side legend — reversed so topmost segment appears at top of legend
+    if legend_spec:
+        legend_x = AR + 0.04
+        legend_items = list(reversed(legend_spec))
+        n_items = len(legend_items)
+        legend_y_start = AT
+        legend_y_step  = (AT - AB) / max(n_items, 1) * 0.88
+        for k, (lbl, clr, is_circle) in enumerate(legend_items):
+            ly = legend_y_start - k * legend_y_step
+            if is_circle:
+                circ = mpatches.Circle(
+                    (legend_x + 0.014, ly - 0.013), radius=0.013,
+                    facecolor="white", edgecolor=_hex_to_rgb(clr),
+                    linewidth=1.5, transform=fig.transFigure,
+                    clip_on=False, zorder=10,
+                )
+                fig.add_artist(circ)
+            else:
+                sq = mpatches.FancyBboxPatch(
+                    (legend_x, ly - 0.026), 0.028, 0.022,
+                    boxstyle="square,pad=0",
+                    facecolor=_hex_to_rgb(clr), edgecolor="none",
+                    transform=fig.transFigure, clip_on=False, zorder=10,
+                )
+                fig.add_artist(sq)
+            fig.text(legend_x + 0.035, ly - 0.007, lbl,
+                     ha="left", va="top", fontsize=8.5,
+                     color="#1A1A1A", transform=fig.transFigure)
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True)
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+# ---------------------------------------------------------------------------
+# Clustered column chart  (grouped bars — e.g. statements × age groups)
+# ---------------------------------------------------------------------------
+
+def render_cluster_column(
+    cluster_labels: List[str],
+    series: List[dict],
+    colors: List[str] | None = None,
+    fig_h: float | None = None,
+    fig_w: float | None = None,
+    legend_spec: List[tuple] | None = None,
+) -> io.BytesIO:
+    """Grouped vertical bar chart.
+
+    series : [{label, values}] — one per series (e.g. age group).
+              values[i] = % for cluster i.
+    Legend drawn along the bottom (one entry per series).
+    """
+    import numpy as np
+
+    n_clusters = len(cluster_labels)
+    n_series   = len(series)
+    if colors is None:
+        colors = list(theme.CLUSTER_COLORS)
+    if fig_h is None:
+        fig_h = 4.5
+    if fig_w is None:
+        fig_w = max(6.0, n_clusters * 1.2)
+
+    AL = 0.06
+    AR = 0.97
+    AT = 0.93
+    AB = 0.22   # extra bottom margin for x-labels + legend
+
+    bar_w     = 0.16
+    group_gap = 0.08
+    total_group_w = n_series * bar_w + group_gap
+    import numpy as np_inner
+    x = np_inner.arange(n_clusters) * (total_group_w + 0.12)
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    fig.patch.set_facecolor("none")
+    ax.set_facecolor("none")
+    plt.subplots_adjust(left=AL, right=AR, top=AT, bottom=AB)
+
+    for s_i, ser in enumerate(series):
+        clr  = colors[s_i % len(colors)]
+        xs   = x + s_i * bar_w - (n_series - 1) * bar_w / 2
+        vals = [float(v) for v in ser["values"]]
+        ax.bar(xs, vals, width=bar_w, color=_hex_to_rgb(clr),
+               zorder=3, edgecolor="none")
+        for xi, vi in zip(xs, vals):
+            if vi >= 8:
+                ax.text(xi, vi / 2, f"{int(round(vi))}",
+                        ha="center", va="center_baseline",
+                        fontsize=8, color="white", fontweight="bold", zorder=4)
+
+    # Axes
+    ax.set_ylim(0, 100)
+    ax.set_xticks(x)
+    wrapped = [_wrap_label(lbl, 14) for lbl in cluster_labels]
+    ax.set_xticklabels(wrapped, fontsize=10, fontweight="bold",
+                       color="#1A1A1A", linespacing=0.9)
+    ax.tick_params(axis="x", length=0)
+    ax.yaxis.set_visible(False)
+    ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="#E0E0E0", zorder=0)
+    ax.set_axisbelow(True)
+    for name, spine in ax.spines.items():
+        if name == "bottom":
+            spine.set_visible(True)
+            spine.set_linewidth(1.4)
+            spine.set_color(theme.GRAY_DARK)
+        else:
+            spine.set_visible(False)
+
+    # Bottom legend — one entry per series, left-to-right
+    if legend_spec:
+        handles = [mpatches.Patch(color=_hex_to_rgb(clr), label=lbl)
+                   for lbl, clr, _ in legend_spec]
+        ax.legend(handles=handles, loc="upper center",
+                  bbox_to_anchor=(0.5, -0.18),
+                  ncol=n_series, fontsize=9, frameon=False,
+                  handlelength=1.0, handleheight=0.8,
+                  columnspacing=1.0, borderpad=0)
 
     buf = io.BytesIO()
     plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True,

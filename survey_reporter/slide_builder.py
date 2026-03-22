@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import io
+import os
+import re
+import textwrap
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -902,6 +905,224 @@ def add_table_slide(
 
 
 # ---------------------------------------------------------------------------
+# Individual chart script export
+# ---------------------------------------------------------------------------
+
+def _write_chart_script(script_path: str, render_fn: str, kwargs: dict) -> None:
+    """Write a standalone Python script that regenerates the chart as a PNG.
+
+    Edit the data variables in the script and run it to get an updated image.
+    """
+    png_path = os.path.splitext(script_path)[0] + ".png"
+    lines = [
+        "\"\"\"Auto-generated chart script — edit values/labels and run to regenerate the PNG.\"\"\"",
+        "from __future__ import annotations",
+        "import sys, os",
+        "# Allow running from any directory",
+        "sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))",
+        "from survey_reporter import chart_styles, theme",
+        "",
+    ]
+    for k, v in kwargs.items():
+        lines.append(f"{k} = {repr(v)}")
+    lines.append("")
+    call_args = ", ".join(
+        f"{k}={k}" for k in kwargs
+    )
+    lines.append(f"buf = chart_styles.{render_fn}({call_args})")
+    lines.append(f"out = {repr(png_path)}")
+    lines.append("with open(out, 'wb') as f:")
+    lines.append("    f.write(buf.read())")
+    lines.append("print(f'Saved → {out}')")
+    lines.append("")
+    with open(script_path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines))
+
+
+# ---------------------------------------------------------------------------
+# Stacked column slide  (vertical stacked bars — tracking / waves)
+# ---------------------------------------------------------------------------
+
+def add_stacked_column_slide(
+    prs: Presentation,
+    spec: dict,
+    page_num: int | None = None,
+    logo_path: str | None = None,
+    chart_export_dir: str | None = None,
+) -> None:
+    """Vertical stacked bar chart (columns) — same grid layout as add_grid_slide."""
+    slide = _layout_slide(prs, _LAYOUT_GRID)
+    _add_logo(slide, logo_path)
+
+    heading         = spec.get("heading", "")
+    question        = spec.get("question", "")
+    annot_lines     = spec.get("annotations", [])
+    base_note       = spec.get("base", "")
+    top_box_spec    = spec.get("top_box")
+    bottom_box_spec = spec.get("bottom_box")
+    scale_order     = spec.get("scale_order", [])
+    columns         = spec.get("columns", [])
+
+    if not _fill_placeholder(slide, 0, heading):
+        _add_textbox(slide, theme.HEADING_BOX, heading,
+                     font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
+        _add_heading_rule(slide)
+    if question:
+        if not _fill_placeholder(slide, 21, question):
+            _add_textbox(slide, theme.QUESTION_BOX, question,
+                         font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
+
+    col_labels = [c["label"] for c in columns]
+
+    # Build segments: {label, values[col_i]}
+    segments: list[dict] = []
+    for opt in scale_order:
+        values = [float(c.get("values", {}).get(opt, 0)) for c in columns]
+        segments.append({"label": opt, "values": values})
+
+    # Colours via shared palette
+    top_vals = set(top_box_spec.get("values", []) if top_box_spec else [])
+    bot_vals = set(bottom_box_spec.get("values", []) if bottom_box_spec else [])
+    seg_colors = _assign_segment_colors(scale_order, top_vals, bot_vals)
+
+    # Top-box totals per column
+    top_vals_list = list(top_vals)
+    total_percents: list[float] = []
+    for c in columns:
+        vals_dict = c.get("values", {})
+        tp = sum(float(vals_dict.get(v, 0)) for v in top_vals_list)
+        total_percents.append(tp)
+    circle_color = theme.TEAL_MID if top_vals else theme.SALMON
+
+    # Legend spec: circle entry first, then segments
+    circle_label = top_box_spec.get("label", "") if top_box_spec else ""
+    legend_spec: list[tuple] = []
+    if circle_label:
+        legend_spec.append((circle_label, circle_color, True))
+    for seg, clr in zip(segments, seg_colors):
+        legend_spec.append((seg["label"], clr, False))
+
+    # Chart dimensions (same as grid)
+    ch = min(_GRID_CHART_MAX_H, max(4.00, 4.5))
+    ct = (_GRID_MINT_TOP + _GRID_MINT_BOTTOM - ch) / 2
+    cl = _CHART_L
+    cw = _GRID_CHART_W
+
+    chart_buf = chart_styles.render_stacked_column(
+        col_labels, segments, colors=seg_colors,
+        fig_h=ch, fig_w=cw,
+        total_percents=total_percents if top_vals_list else None,
+        circle_color=circle_color,
+        legend_spec=legend_spec,
+    )
+    chart_buf.seek(0)
+    slide.shapes.add_picture(chart_buf, Inches(cl), Inches(ct),
+                             width=Inches(cw), height=Inches(ch))
+
+    annot_font = spec.get("annotation_font", _ANNOT_FONT)
+    if annot_lines:
+        _add_multiline_textbox(
+            slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
+            annot_lines, font_size=annot_font, color=theme.GRAY_DARK)
+
+    if not _fill_placeholder(slide, 22, base_note):
+        _add_footer(slide, base_note, page_num)
+
+    # Export standalone script
+    if chart_export_dir:
+        os.makedirs(chart_export_dir, exist_ok=True)
+        slug = re.sub(r"[^\w]+", "_", heading[:45]).strip("_")
+        script_path = os.path.join(
+            chart_export_dir, f"{page_num:02d}_stacked_column_{slug}.py")
+        _write_chart_script(script_path, "render_stacked_column", {
+            "col_labels": col_labels,
+            "segments": segments,
+            "colors": seg_colors,
+            "fig_h": ch,
+            "fig_w": cw,
+            "total_percents": total_percents if top_vals_list else None,
+            "circle_color": circle_color,
+            "legend_spec": legend_spec,
+        })
+
+
+# ---------------------------------------------------------------------------
+# Cluster column slide  (grouped vertical bars — e.g. statements × age)
+# ---------------------------------------------------------------------------
+
+def add_cluster_column_slide(
+    prs: Presentation,
+    spec: dict,
+    page_num: int | None = None,
+    logo_path: str | None = None,
+    chart_export_dir: str | None = None,
+) -> None:
+    """Grouped vertical bar chart — same grid layout as add_grid_slide."""
+    slide = _layout_slide(prs, _LAYOUT_GRID)
+    _add_logo(slide, logo_path)
+
+    heading         = spec.get("heading", "")
+    question        = spec.get("question", "")
+    annot_lines     = spec.get("annotations", [])
+    base_note       = spec.get("base", "")
+    cluster_labels  = spec.get("cluster_labels", [])
+    series_spec     = spec.get("series", [])
+
+    if not _fill_placeholder(slide, 0, heading):
+        _add_textbox(slide, theme.HEADING_BOX, heading,
+                     font_size=theme.FONT_HEADING, color=theme.TEAL_DARK, bold=True)
+        _add_heading_rule(slide)
+    if question:
+        if not _fill_placeholder(slide, 21, question):
+            _add_textbox(slide, theme.QUESTION_BOX, question,
+                         font_size=theme.FONT_QUESTION, color=theme.GRAY_DARK, italic=True)
+
+    colors = list(theme.CLUSTER_COLORS)
+    series = [{"label": s["label"], "values": s["values"]} for s in series_spec]
+    legend_spec: list[tuple] = [
+        (s["label"], colors[i % len(colors)], False)
+        for i, s in enumerate(series)
+    ]
+
+    ch = min(_GRID_CHART_MAX_H, max(4.00, 4.5))
+    ct = (_GRID_MINT_TOP + _GRID_MINT_BOTTOM - ch) / 2
+    cl = _CHART_L
+    cw = _GRID_CHART_W
+
+    chart_buf = chart_styles.render_cluster_column(
+        cluster_labels, series, colors=colors,
+        fig_h=ch, fig_w=cw,
+        legend_spec=legend_spec,
+    )
+    chart_buf.seek(0)
+    slide.shapes.add_picture(chart_buf, Inches(cl), Inches(ct),
+                             width=Inches(cw), height=Inches(ch))
+
+    annot_font = spec.get("annotation_font", _ANNOT_FONT)
+    if annot_lines:
+        _add_multiline_textbox(
+            slide, (_GRID_ANNOT_L, ct, _GRID_ANNOT_W, ch),
+            annot_lines, font_size=annot_font, color=theme.GRAY_DARK)
+
+    if not _fill_placeholder(slide, 22, base_note):
+        _add_footer(slide, base_note, page_num)
+
+    if chart_export_dir:
+        os.makedirs(chart_export_dir, exist_ok=True)
+        slug = re.sub(r"[^\w]+", "_", heading[:45]).strip("_")
+        script_path = os.path.join(
+            chart_export_dir, f"{page_num:02d}_cluster_column_{slug}.py")
+        _write_chart_script(script_path, "render_cluster_column", {
+            "cluster_labels": cluster_labels,
+            "series": series,
+            "colors": colors,
+            "fig_h": ch,
+            "fig_w": cw,
+            "legend_spec": legend_spec,
+        })
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -911,6 +1132,7 @@ def build_pptx(
     output_path: str,
     logo_path: str | None = None,
     template_path: str | None = None,
+    chart_export_dir: str | None = None,
 ) -> str:
     if template_path and Path(template_path).exists():
         prs = _load_template(template_path)
@@ -955,6 +1177,18 @@ def build_pptx(
             result = result_map.get(spec.get("variable", ""))
             add_table_slide(prs, spec, result,
                             page_num=page_num, logo_path=logo_path)
+            page_num += 1
+
+        elif slide_type == "stacked_column":
+            add_stacked_column_slide(prs, spec,
+                                     page_num=page_num, logo_path=logo_path,
+                                     chart_export_dir=chart_export_dir)
+            page_num += 1
+
+        elif slide_type == "cluster_column":
+            add_cluster_column_slide(prs, spec,
+                                     page_num=page_num, logo_path=logo_path,
+                                     chart_export_dir=chart_export_dir)
             page_num += 1
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
