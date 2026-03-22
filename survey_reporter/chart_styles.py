@@ -787,20 +787,28 @@ def render_cluster_column(
     ax.set_facecolor("none")
     plt.subplots_adjust(left=AL, right=AR, top=AT, bottom=AB)
 
-    r_x_data = bar_w * 0.18
+    # Compute corner radii so the curve looks symmetric in pixel space.
+    # x and y axes have very different pixel densities (x data units are ~65x denser
+    # than y units on a 0-100 scale), so r_y must be scaled accordingly.
+    margin    = total_group_w * 0.35
+    x_span    = (x[-1] + total_group_w / 2 + margin) - (x[0] - total_group_w / 2 - margin)
+    px_per_x  = (AR - AL) * fig_w / x_span
+    px_per_y  = (AT - AB) * fig_h / 100.0
+    r_x_data  = bar_w * 0.18
+    r_y_data  = r_x_data * px_per_x / px_per_y   # same pixel size as r_x
+
     for s_i, ser in enumerate(series):
         clr  = colors[s_i % len(colors)]
         xs   = x + s_i * bar_w - (n_series - 1) * bar_w / 2
         vals = [float(v) for v in ser["values"]]
         for xi, vi in zip(xs, vals):
-            _rounded_top_bar(ax, xi, 0.0, vi, bar_w, r_x_data, vi * 0.18, clr)
+            _rounded_top_bar(ax, xi, 0.0, vi, bar_w, r_x_data, r_y_data, clr)
             if vi >= 8:
                 ax.text(xi, vi / 2, f"{int(round(vi))}",
                         ha="center", va="center_baseline",
                         fontsize=9, color="white", fontweight="bold", zorder=4)
 
     # Axes
-    margin = total_group_w * 0.35
     ax.set_xlim(x[0] - total_group_w / 2 - margin,
                 x[-1] + total_group_w / 2 + margin)
     ax.set_ylim(0, 100)
