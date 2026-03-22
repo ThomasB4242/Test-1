@@ -22,8 +22,9 @@ LIKERT_COLORS = [TEAL_DARK, TEAL_LIGHT, GRAY_NEUTRAL, PINK_LIGHT, CORAL]
 BAR_COLOR = TEAL_MID     # simple horizontal bar
 
 # Four shades of teal for clustered column charts (darkest → lightest)
-TEAL_PALE      = "#C8F4F3"
-CLUSTER_COLORS = [TEAL_DARK, TEAL_MID, TEAL_LIGHT, TEAL_PALE]
+# All kept in the dark-to-mid range so bars remain clearly visible
+TEAL_PALE      = "#C8F4F3"   # retained for legacy use; not used in CLUSTER_COLORS
+CLUSTER_COLORS = ["#014E4C", "#027F7C", "#019996", "#00BDBB"]
 
 # Slide dimensions (inches) — widescreen 13.33 × 7.5
 SLIDE_W = 13.33

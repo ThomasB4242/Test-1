@@ -681,7 +681,7 @@ def render_stacked_column(
     if total_percents:
         cclr_hex = circle_color or theme.TEAL_MID
         cclr = _hex_to_rgb(cclr_hex)
-        c_diam = 22.0
+        c_diam = 32.0
         c_fs   = max(8, int(c_diam * 0.38))
         border_w = max(1.5, c_diam * 0.12)
         for col_i, tp in enumerate(total_percents):
@@ -731,7 +731,7 @@ def render_stacked_column(
             handles.append(h)
         ax.legend(handles=handles, loc="center left",
                   bbox_to_anchor=(1.02, 0.5),
-                  ncol=1, fontsize=9, frameon=False,
+                  ncol=1, fontsize=14, frameon=False,
                   handlelength=1.2, handleheight=0.9,
                   borderpad=0, labelspacing=0.7,
                   labelcolor="#1A1A1A")
@@ -823,7 +823,7 @@ def render_cluster_column(
     for xi, lbl in zip(x, cluster_labels):
         ax.text(xi, 1.03, _wrap_label(lbl, 14),
                 transform=trans_top, ha="center", va="bottom",
-                fontsize=10, fontweight="bold", color="#1A1A1A",
+                fontsize=14, fontweight="bold", color="#1A1A1A",
                 multialignment="center", clip_on=False)
 
     # Bottom legend — one entry per series, left-to-right
@@ -832,7 +832,7 @@ def render_cluster_column(
                    for lbl, clr, _ in legend_spec]
         ax.legend(handles=handles, loc="upper center",
                   bbox_to_anchor=(0.5, -0.18),
-                  ncol=n_series, fontsize=9, frameon=False,
+                  ncol=n_series, fontsize=14, frameon=False,
                   handlelength=1.0, handleheight=0.8,
                   columnspacing=1.0, borderpad=0)
 
