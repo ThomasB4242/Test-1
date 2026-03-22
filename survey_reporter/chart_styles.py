@@ -674,7 +674,7 @@ def render_stacked_column(
             if val >= 2:
                 ax.text(col_i, y0 + val / 2, f"{int(round(val))}",
                         ha="center", va="center_baseline",
-                        fontsize=10, color="white", fontweight="bold", zorder=4)
+                        fontsize=14, color="white", fontweight="bold", zorder=4)
             bottoms[col_i] = y1
 
     # Total circles — at (col_i, total_pct) matching the percentage on the y-axis
@@ -806,7 +806,7 @@ def render_cluster_column(
             if vi >= 8:
                 ax.text(xi, vi / 2, f"{int(round(vi))}",
                         ha="center", va="center_baseline",
-                        fontsize=9, color="white", fontweight="bold", zorder=4)
+                        fontsize=14, color="white", fontweight="bold", zorder=4)
 
     # Axes
     ax.set_xlim(x[0] - total_group_w / 2 - margin,

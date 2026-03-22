@@ -845,14 +845,14 @@ def add_table_slide(
                 run = p.add_run()
                 run.text = txt
                 run.font.name  = theme.FONT_FACE
-                run.font.size  = Pt(10)
+                run.font.size  = Pt(14)
                 run.font.bold  = bold
                 run.font.color.rgb = _rgb(fg)
         else:
             run = p.add_run()
             run.text = label
             run.font.name  = theme.FONT_FACE
-            run.font.size  = Pt(10)
+            run.font.size  = Pt(14)
             run.font.bold  = True
             run.font.color.rgb = _rgb(fg)
         _apply_bg(cell, bg)
@@ -866,7 +866,7 @@ def add_table_slide(
         run = p.add_run()
         run.text = f"{int(round(pct))}%"
         run.font.name  = theme.FONT_FACE
-        run.font.size  = Pt(10)
+        run.font.size  = Pt(14)
         run.font.bold  = True
         run.font.color.rgb = _rgb(fg)
         _apply_bg(cell, bg)
@@ -898,8 +898,8 @@ def add_table_slide(
         _ROW_ALT = "#E6F8F9"
         for i, freq in enumerate(freqs):
             bg     = theme.WHITE if i % 2 == 0 else _ROW_ALT
-            fg_lbl = theme.TEAL_DARK if i == 0 else theme.GRAY_DARK
-            fg_pct = theme.TEAL_DARK if freq.percent >= max_pct * 0.7 else theme.GRAY_DARK
+            fg_lbl = "#1A1A1A"
+            fg_pct = "#1A1A1A"
             _label_cell(tbl.cell(i + 1, 0), freq.label, fg_lbl, bg)
             _pct_cell(tbl.cell(i + 1, 1), freq.percent, fg_pct, bg)
 
