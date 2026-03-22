@@ -794,7 +794,7 @@ def render_cluster_column(
     x_span    = (x[-1] + total_group_w / 2 + margin) - (x[0] - total_group_w / 2 - margin)
     px_per_x  = (AR - AL) * fig_w / x_span
     px_per_y  = (AT - AB) * fig_h / 100.0
-    r_x_data  = bar_w * 0.18
+    r_x_data  = bar_w * 0.10
     r_y_data  = r_x_data * px_per_x / px_per_y   # same pixel size as r_x
 
     for s_i, ser in enumerate(series):
