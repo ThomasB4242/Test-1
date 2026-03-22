@@ -361,7 +361,7 @@ def render_stacked_bar(
     ax.set_xticks([0, 25, 50, 75, 100])
     ax.set_xticklabels([])                          # no numbers
     ax.tick_params(axis="x", length=0)
-    ax.xaxis.grid(True, linestyle="-", linewidth=0.6, color="#E0E0E0", zorder=0)
+    ax.xaxis.grid(True, linestyle="-", linewidth=0.6, color="black", alpha=0.25, zorder=0)
     ax.set_axisbelow(True)
 
     for name, spine in ax.spines.items():
@@ -705,7 +705,7 @@ def render_stacked_column(
     ax.tick_params(axis="x", length=0)
     # Hide y-axis tick marks and labels but keep horizontal grid lines
     ax.tick_params(axis="y", length=0, labelleft=False)
-    ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="#E0E0E0", zorder=0)
+    ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="black", alpha=0.25, zorder=0)
     ax.set_axisbelow(True)
     for name, spine in ax.spines.items():
         if name == "bottom":
@@ -817,7 +817,7 @@ def render_cluster_column(
     ax.tick_params(axis="x", length=0)
     # Hide y-axis tick marks and labels but keep horizontal grid lines
     ax.tick_params(axis="y", length=0, labelleft=False)
-    ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="#E0E0E0", zorder=0)
+    ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="black", alpha=0.25, zorder=0)
     ax.set_axisbelow(True)
     for name, spine in ax.spines.items():
         if name == "bottom":
