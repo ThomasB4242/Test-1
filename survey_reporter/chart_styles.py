@@ -700,9 +700,11 @@ def render_stacked_column(
     ax.set_xlim(-0.55, n_cols - 0.45)
     ax.set_ylim(0, 100)
     ax.set_xticks(range(n_cols))
-    ax.set_xticklabels(col_labels, fontsize=12, fontweight="bold", color="#1A1A1A")
+    ax.set_xticklabels(col_labels, fontsize=12, fontweight="bold",
+                       color="#1A1A1A")
     ax.tick_params(axis="x", length=0)
-    ax.yaxis.set_visible(False)
+    # Hide y-axis tick marks and labels but keep horizontal grid lines
+    ax.tick_params(axis="y", length=0, labelleft=False)
     ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="#E0E0E0", zorder=0)
     ax.set_axisbelow(True)
     for name, spine in ax.spines.items():
@@ -713,34 +715,26 @@ def render_stacked_column(
         else:
             spine.set_visible(False)
 
-    # Right-side legend — reversed so topmost segment appears at top of legend
+    # Right-side legend using ax.legend so marker types render correctly
     if legend_spec:
-        legend_x = AR + 0.04
-        legend_items = list(reversed(legend_spec))
-        n_items = len(legend_items)
-        legend_y_start = AT
-        legend_y_step  = (AT - AB) / max(n_items, 1) * 0.88
-        for k, (lbl, clr, is_circle) in enumerate(legend_items):
-            ly = legend_y_start - k * legend_y_step
+        handles = []
+        for lbl, clr, is_circle in reversed(legend_spec):   # top segment first
+            clr_rgb = _hex_to_rgb(clr)
             if is_circle:
-                circ = mpatches.Circle(
-                    (legend_x + 0.014, ly - 0.013), radius=0.013,
-                    facecolor="white", edgecolor=_hex_to_rgb(clr),
-                    linewidth=1.5, transform=fig.transFigure,
-                    clip_on=False, zorder=10,
+                h = mlines.Line2D(
+                    [], [], color="none", marker="o",
+                    markerfacecolor="white", markeredgecolor=clr_rgb,
+                    markeredgewidth=1.5, markersize=9, label=lbl,
                 )
-                fig.add_artist(circ)
             else:
-                sq = mpatches.FancyBboxPatch(
-                    (legend_x, ly - 0.026), 0.028, 0.022,
-                    boxstyle="square,pad=0",
-                    facecolor=_hex_to_rgb(clr), edgecolor="none",
-                    transform=fig.transFigure, clip_on=False, zorder=10,
-                )
-                fig.add_artist(sq)
-            fig.text(legend_x + 0.035, ly - 0.007, lbl,
-                     ha="left", va="top", fontsize=8.5,
-                     color="#1A1A1A", transform=fig.transFigure)
+                h = mpatches.Patch(facecolor=clr_rgb, edgecolor="none", label=lbl)
+            handles.append(h)
+        ax.legend(handles=handles, loc="center left",
+                  bbox_to_anchor=(1.02, 0.5),
+                  ncol=1, fontsize=9, frameon=False,
+                  handlelength=1.2, handleheight=0.9,
+                  borderpad=0, labelspacing=0.7,
+                  labelcolor="#1A1A1A")
 
     buf = io.BytesIO()
     plt.savefig(buf, format="png", dpi=CHART_DPI, transparent=True)
@@ -780,8 +774,8 @@ def render_cluster_column(
 
     AL = 0.06
     AR = 0.97
-    AT = 0.93
-    AB = 0.22   # extra bottom margin for x-labels + legend
+    AT = 0.80   # leave top headroom for cluster labels above bars
+    AB = 0.14   # bottom for legend
 
     bar_w     = 0.16
     group_gap = 0.08
@@ -804,16 +798,15 @@ def render_cluster_column(
             if vi >= 8:
                 ax.text(xi, vi / 2, f"{int(round(vi))}",
                         ha="center", va="center_baseline",
-                        fontsize=8, color="white", fontweight="bold", zorder=4)
+                        fontsize=9, color="white", fontweight="bold", zorder=4)
 
     # Axes
     ax.set_ylim(0, 100)
     ax.set_xticks(x)
-    wrapped = [_wrap_label(lbl, 14) for lbl in cluster_labels]
-    ax.set_xticklabels(wrapped, fontsize=10, fontweight="bold",
-                       color="#1A1A1A", linespacing=0.9)
+    ax.set_xticklabels([])           # no bottom labels — labels go above instead
     ax.tick_params(axis="x", length=0)
-    ax.yaxis.set_visible(False)
+    # Hide y-axis tick marks and labels but keep horizontal grid lines
+    ax.tick_params(axis="y", length=0, labelleft=False)
     ax.yaxis.grid(True, linestyle="-", linewidth=0.6, color="#E0E0E0", zorder=0)
     ax.set_axisbelow(True)
     for name, spine in ax.spines.items():
@@ -823,6 +816,15 @@ def render_cluster_column(
             spine.set_color(theme.GRAY_DARK)
         else:
             spine.set_visible(False)
+
+    # Cluster labels at the TOP of each cluster — blended transform: data-x, axes-y
+    from matplotlib.transforms import blended_transform_factory
+    trans_top = blended_transform_factory(ax.transData, ax.transAxes)
+    for xi, lbl in zip(x, cluster_labels):
+        ax.text(xi, 1.03, _wrap_label(lbl, 14),
+                transform=trans_top, ha="center", va="bottom",
+                fontsize=10, fontweight="bold", color="#1A1A1A",
+                multialignment="center", clip_on=False)
 
     # Bottom legend — one entry per series, left-to-right
     if legend_spec:
